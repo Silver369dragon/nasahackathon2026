@@ -99,3 +99,17 @@ npm.cmd start
 Open the [connected cabin](http://127.0.0.1:4173/) in two browser windows. In the first, use **Go to area** to enter the commons and wait for **Live** on the wall. In the second, select **Mira** under **Crew devices** and tap **Request help**. The wall shows **Mira · Manual help request** and the event time.
 
 With only the 3D service running, you can also explore four scripted scenarios. Press **F** to choose one. Stop each running service with `Ctrl+C` in its PowerShell window. [Standalone simulation](http://127.0.0.1:4173/?mode=simulation) · [3D demo guide](astro-hiyoko-demo/README.md)
+
+
+## Added features and demonstration datasets
+
+- **Space radiation monitoring:** personal views show prior exposure, shared increment and total; monitoring staff can view all five crew and control simulated events. The cabin's **More → Open radiation monitor** reads the same persisted backend mission. Reloading does not reset exposure. All radiation values are Simulation.
+- **Historical dataset import:** sign in as `monitor`, open `/system`, choose a JSON file, review its summary and import it. Measurements, body scans and radiation archives are supported. Imported radiation archives are displayed separately from the live mission.
+- **Telemetry playback fallback:** start the medical and cabin services, then open `http://127.0.0.1:4173/playback.html` to loop synthetic readings into the crew phones and shared board. Stopping playback lets readings become stale while preserving history.
+
+| File | Purpose |
+| --- | --- |
+| [60-second dataset](astro-hiyoko-demo/data/crew-health-sample60.zip) | Five-crew synthetic telemetry loaded directly by the player: 300 packets and 1,215 metrics per cycle. Demonstrates the data flow without hardware; it is not the historical JSON import format. |
+| [Historical JSON example](health-system/examples/crew-dataset.example.json) | Select this file in the monitoring station's dataset importer to demonstrate the `crew-dataset/1` historical format. |
+
+`health-system/backend/radiation*.py` implements accumulation, persistence and APIs; `dataset_import.py` and `body_import.py` handle imports. `RadiationPanel.tsx` and `DatasetImport.tsx` provide the medical UI; `astro-hiyoko-demo/radiation-monitor.js` connects the cabin display. See the [health-system guide](health-system/README.md) and [cabin guide](astro-hiyoko-demo/README.md).

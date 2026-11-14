@@ -54,6 +54,7 @@ export function shouldNotifyDesktop(item: Emergency, context: {
     (item.source !== 'manual' || item.crewId !== context.crewId)
 }
 export type Snapshot = {
+  radiation?: import('./radiation').RadiationSnapshot | null
   news2Assessments?: import('./news2').AssessmentSummary[]
   crewSummaries: CrewSummary[]
   emergencies: Emergency[]

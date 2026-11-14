@@ -125,6 +125,8 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': mime[path.extname(target)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(data);
   } catch {
+    if (res.destroyed || res.writableEnded) return;
+    if (res.headersSent) return res.destroy();
     res.writeHead(404).end('Not found');
   }
 }).listen(port, '127.0.0.1', () => console.log(`Astro Hiyoko demo: http://127.0.0.1:${port}`));

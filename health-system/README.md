@@ -100,3 +100,22 @@ The local launcher enables `HEALTH_BODY_SCAN_DEMO=1` unless overridden. Set it t
 The original 22-region GLB is about 1.94 MB / 26,764 triangles; see `web/public/body/LICENSE.md` for provenance and CC0 terms. Regenerate it with `node tools/create-body-model.mjs` and its static card image with `node tools/create-body-preview.mjs` from `web`. Three.js loads only on the body page. A WebGL/model failure falls back to a selectable 2D body while retaining the data and comparisons.
 
 Run the usual frontend typecheck, tests, lint and build, then `npm.cmd run test:body` for the isolated body-browser suite. Body tests cover 360/390/430px, landscape and desktop Chrome with simulated touch; physical-phone Safari behavior and sustained rotation performance still need device verification.
+
+## Space radiation monitoring
+
+The first authenticated view starts one persisted mission. Fictional prior exposure is Lin 216, Kai 162, Mira 72, Noa 18 and Sol 288 mSv, backed by nine historical mission records. A single backend clock adds the same exposure to all five people at 75 μSv/h (one real second per monitoring second). Reloading, switching people or closing every browser does not reset the mission; the running backend continues accumulating.
+
+Personal views separate prior exposure, shared increment and comparable total. The monitor sees all five; the public board has no personal histories. Monitor-only simulation controls select elevated (150 μSv/h) or SPE (750 μSv/h), then restore background without reducing dose. These are Simulation values, not safety thresholds; vital signs and NEWS2 remain independent.
+
+Storage uses the existing `HEALTH_DB_PATH`. Upgrading an old database first creates a SQLite backup named `*.before-radiation.sqlite3` beside it. Shutdown checkpoints the clock; a crash restores the last committed checkpoint without extrapolating downtime. Use a separate DB for testing.
+
+The additive `radiation/1` contract uses existing sessions/CSRF and Snapshot/SSE (`radiation.updated`). Resources: `GET /v1/radiation/current?view=...`, `/environment?missionId=...`, `/crew/{crewId}`, `/crew/{crewId}/history`, monitor-only `POST /demo-event` and `/samples` under `/v1/radiation`. Existing telemetry 1.2/1.3 is unchanged. See the [Chinese API notes](README.zh-TW.md#太空輻射監測) for fields.
+
+Defaults: `HEALTH_RADIATION_ENABLED=1`, `HEALTH_RADIATION_SOURCE=simulation`. For a new external simulation mission set `HEALTH_RADIATION_SOURCE=json` and `HEALTH_RADIATION_SOURCE_ID` (default `demo`) before first activation. Existing missions retain their source. External cumulative values exclude personal history and become authoritative, with no extra rate integration. Missing/stale/conflicting input never becomes zero or a fabricated live reading.
+
+
+## Import demonstration history
+
+Sign in to `/system` as `monitor` / `orbital-demo`, select [crew-dataset.example.json](examples/crew-dataset.example.json) in the dataset importer, review the summary and import it. The `crew-dataset/1` JSON format supports measurements, body scans and radiation archives, up to 32 MiB. Repeating the same dataset ID and content does not duplicate records; different content requires a new ID. Observations must be historical, not in the future. Import writes to the active database; set a separate `HEALTH_DB_PATH` for an isolated demonstration.
+
+This JSON demonstrates import and historical views. The [60-second ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) instead feeds live synthetic telemetry through the cabin's `/playback.html`; the formats are not interchangeable. Each cycle contains 300 packets and 1,215 metrics across five crew, including heart rate, SpO2, respiratory rate, missing work-of-breathing values, and temperature/blood pressure at the first second. All data is synthetic demonstration data.

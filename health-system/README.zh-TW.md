@@ -108,3 +108,28 @@ Windows 預設資料庫位於 `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`
 人體模型為本專案原創 22 區 GLB（約 1.94 MB、26,764 三角形），來源與 CC0 授權見 `web/public/body/LICENSE.md`；重建指令為 `node tools/create-body-model.mjs`、`node tools/create-body-preview.mjs`（在 `web` 執行）。首頁只載入靜態預覽，進入人體頁才載入 Three.js。WebGL／模型失敗時降級為可選部位的平面圖，資料與比較仍可操作。
 
 前端執行 `npm.cmd run typecheck`、`npm.cmd test`、`npm.cmd run lint`、`npm.cmd run build`，再執行 `npm.cmd run test:body`。人體瀏覽器測試使用獨立臨時資料庫，涵蓋 360、390、430px、橫向與桌面。這些是 Chrome 視窗與觸控模擬，真實手機的 Safari、捲動手感及持續旋轉效能仍須實機確認。
+
+## 太空輻射監測
+
+首次授權開啟網頁會建立一個共同監測任務。Lin／Kai／Mira／Noa／Sol 的虛構歷史暴露分別為 216／162／72／18／288 mSv；這些值來自明列的深空展示任務天數。之後全員依同一個 75 μSv/h 背景共同增加，每一實秒對應一監測秒。瀏覽器不自行積分；換人、重新整理或關頁重開都沿用 SQLite 保存的任務。全部網頁關閉後，運作中的後端仍持續累加。
+
+個人總覽拆分歷史／共同新增／合計；監測站顯示五人，唯讀看板只顯示公共環境及共同新增。監測帳號可在「模擬事件控制」啟動 150 μSv/h 的 elevated 或 750 μSv/h 的 SPE，結束後回到背景但不減少累積。這些都是 Simulation，不是醫療安全門檻；不會改變生命徵象或 NEWS2。
+
+資料存於既有 `HEALTH_DB_PATH`。首次升級舊資料庫時，會先用 SQLite backup API 在同資料夾建立 `*.before-radiation.sqlite3`。正常關閉後端會保存最後進度；異常終止恢復最後成功 checkpoint，停機期間不外推。開發測試請使用不同的 DB 路徑，不要刪除日常資料庫來重播展示。
+
+輻射子契約為 `radiation/1`，舊 telemetry 1.2／1.3 不變：
+
+- `GET /v1/radiation/current?view=personal|system|system_display`：授權快照；也包含在既有 `/v1/snapshot` 和 `radiation.updated` SSE。
+- `GET /v1/radiation/environment?missionId=...`：可分頁的環境率區間；`fromMs`／`toMs` 是共同任務時間。
+- `GET /v1/radiation/crew/{crewId}` 與 `/history`：本人或監測站讀取。
+- `POST /v1/radiation/demo-event`：monitor＋CSRF，帶 `commandId`、`expectedControlVersion`、`action` 和 `preset`／`eventId`；同 ID 重試不重複執行。
+- `POST /v1/radiation/samples`：外部 JSON 來源模式的 monitor＋CSRF 輸入。封包帶 `missionId`、`sourceId`、`messageId` 及 `sample`；sample 使用 `timestamp`、`missionElapsedMs`、`radiation_rate_usv_h`、`cumulative_radiation_msv`、`radiation_event`、`is_simulated=true`。
+
+預設 `HEALTH_RADIATION_ENABLED=1`、`HEALTH_RADIATION_SOURCE=simulation`。新任務若要接 JSON，啟動前設定 `HEALTH_RADIATION_SOURCE=json` 與 `HEALTH_RADIATION_SOURCE_ID`（預設 demo）；已存在任務不切換來源。外部 cumulative 是「本次共同新增」，不含個人歷史，提供後以來源為準、不再重複積分。逆序／衝突回 409，缺值或中斷明示；率樣本間隔超過 5 任務秒不補算，5 實秒無更新標過期。首版僅接受模擬資料。
+
+
+## 匯入展示用歷史資料
+
+以 `monitor`／`orbital-demo` 登入 `/system`，在資料匯入區選擇 [crew-dataset.example.json](examples/crew-dataset.example.json)，檢查摘要後按匯入。JSON 格式為 `crew-dataset/1`，支援生命徵象、身體掃描與輻射封存；上限 32 MiB。相同 datasetId 與內容重送不會重複建立，內容不同需換新的 ID。資料必須是歷史時間，不接受未來量測。匯入會寫入目前的資料庫；如要獨立展示，可先設定不同的 `HEALTH_DB_PATH`。
+
+這份 JSON 用來展示匯入與歷史檢視；[60 秒 ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) 則供 3D 的 `/playback.html` 循環傳送即時合成遙測，兩者不可互換。ZIP 每輪五人共 300 包、1,215 筆指標，含心率、血氧、呼吸頻率、呼吸費力缺值，以及首秒的體溫與血壓。所有資料皆為展示用合成資料。

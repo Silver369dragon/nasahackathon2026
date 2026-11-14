@@ -90,3 +90,11 @@ W/S、前後箭頭及滾輪始終水平移動，不隨俯仰上下漂移。只�
 - [ESA — Sleeping quarters](https://www.esa.int/media/sleeping-quarters)：私人睡眠艙與固定收納。
 - [ESA — ISS interior tour](https://blogs.esa.int/luca-parmitano/2013/11/06/guide-to-the-international-space-station-for-the-occasional-visitor-part-2/)：公共區、氣閘、跑步機與阻力訓練設備。
 - [地球表面貼圖](https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg) 與 [月球表面貼圖](https://threejs.org/examples/textures/planets/moon_1024.jpg) 來自 Three.js 範例，隨網站存放在 assets 資料夾。
+
+## 輻射監測與資料播放備案
+
+啟動醫療與船艙服務後，在「更多 → 開啟輻射監測」查看共同任務的輻射率與累積值；個人手機顯示個別歷史暴露。動畫暫停、速度、重設與網頁重新整理都不會重設後端輻射任務。所有數值為 Simulation。
+
+開啟 [資料播放器](http://127.0.0.1:4173/playback.html)，按開始循環播放，直到手動停止。播放器使用 [data/crew-health-sample60.zip](data/crew-health-sample60.zip)，先驗證雜湊與遙測格式，再循環傳送五人的 60 秒合成資料；每輪 300 包、1,215 筆指標，以新時間戳與識別持續傳送。這是無硬體時的展示備案，不是完整七天歷史或十分鐘事件情境。停止後讀值過期／裝置離線屬預期行為。
+
+兩個服務必須使用相同的 `HEALTH_DB_PATH`（預設即可），並先停止其他模擬器或硬體傳送，避免來源混用。播放不依賴 3D 動畫，關閉分頁不會停止；請使用播放器的停止按鈕。歷史 JSON 匯入範例與操作請見[醫療系統 README](../health-system/README.zh-TW.md#匯入展示用歷史資料)。

@@ -43,9 +43,11 @@ import { PersonalTraining, TeamTraining } from './Training'
 import { FirstAid } from './FirstAid'
 import { Chat } from './Chat'
 import { Trends } from './Trends'
+import { Radiation } from './RadiationPanel'
 import { AssessmentStatus, News2 } from './AssessmentForm'
 import { BodyOverview } from './BodyOverview'
 import { BodyLoadBoundary } from './BodyLoadBoundary'
+import { DatasetImport } from './DatasetImport'
 import './style.css'
 
 const BodyMap = lazy(() => import('./BodyMap'))
@@ -339,6 +341,10 @@ function Console({
     navigate(p)
     window.scrollTo({ top: 0 })
   }
+  if (personal && new URLSearchParams(window.location.search).get('surface') === 'radiation') {
+    return <main className="radiation-embedded"><Radiation data={feed.radiation} connected={connected}
+      session={session} lang={lang} deny={deny} crewId={session.crewId}/></main>
+  }
   return (
     <div className={'workspace' + (isBoard ? ' board' : '')}>
       {!isBoard && (
@@ -491,8 +497,13 @@ function Console({
                 </button>
               </div>
             )}
+            {isBoard && <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny} board/>}
           </div>}
           {path === paths.personal && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
+          {path === paths.system && session.roles.includes('monitor') && <DatasetImport session={session} lang={lang} deny={deny} />}
+          {(path === paths.personal || path === paths.system || detail) && <Radiation
+            data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny}
+            crewId={personal || detail ? reference : null} board={isBoard}/>}
           {path === paths.personal && help.status === 'sent' && <p className="help-sent" data-testid="help-sent" role="status">
             <CheckCircle2 size={17}/>{t('Help request sent to the crew.', '緊急求助通知已發出。')}</p>}
           {path === paths.personal && help.status === 'queued' && <p className="notice" role="status">

@@ -72,3 +72,11 @@ A scripted event progresses from sensor to phone to shared screen at two-second 
 - Sleeping restraints and private storage. [ESA sleeping quarters](https://www.esa.int/media/sleeping-quarters)
 - Commons, airlock and exercise equipment. [ESA interior tour of the ISS](https://blogs.esa.int/luca-parmitano/2013/11/06/guide-to-the-international-space-station-for-the-occasional-visitor-part-2/)
 - Earth and Moon textures are bundled in `assets/`. [Three.js Earth texture](https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg) · [Three.js Moon texture](https://threejs.org/examples/textures/planets/moon_1024.jpg)
+
+## Radiation monitoring and telemetry fallback
+
+Start both services and choose **More → Open radiation monitor** to see the shared mission rate and accumulated dose. Crew phones show individual prior exposure. Animation pause, speed, reset and browser reload do not reset the backend mission. All values are Simulation.
+
+Open the [dataset player](http://127.0.0.1:4173/playback.html) and start loop playback until manually stopped. It verifies checksums and the telemetry format in [data/crew-health-sample60.zip](data/crew-health-sample60.zip), then repeatedly sends 60 seconds of five-crew synthetic data: 300 packets and 1,215 metrics per cycle, with fresh timestamps and identities. This demonstrates data flow without hardware; it is not a full seven-day history or ten-minute event scenario. Stale readings and offline devices after stopping are expected.
+
+Both services must use the same `HEALTH_DB_PATH` (the default works). Stop other simulators or hardware senders first to avoid mixing sources. Playback is independent of animation and continues after closing the tab; use the Stop button. See the [health-system README](../health-system/README.md#import-demonstration-history) for the separate historical JSON import example.

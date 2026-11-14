@@ -13,6 +13,7 @@ export function WallFeed() {
   const feed = useFeed('system_display', deny, ignoreNotice)
   const packet = useMemo(() => ({
     type: 'ship-wall-feed', status: feed.status, syncedAt: feed.syncedAt,
+    radiation: feed.radiation,
     rows: feed.rows.map(crew => ({
       name: crew.name, crewId: crew.crewId,
       readings: monitoringMetrics.map(metric => {
@@ -36,7 +37,7 @@ export function WallFeed() {
       }),
     })),
     emergency: feed.emergencies[0] ?? null,
-  }), [feed.status, feed.rows, feed.syncedAt, feed.emergencies])
+  }), [feed.status, feed.rows, feed.syncedAt, feed.emergencies, feed.radiation])
   useEffect(() => {
     const publish = () => window.parent.postMessage(packet, window.location.origin)
     publish()

@@ -1,0 +1,16 @@
+.dataset-import { margin: 20px 0; padding: 20px; }
+.dataset-import-heading { display: flex; gap: 10px; align-items: center; }
+.dataset-import-heading svg { color: var(--accent); }
+.dataset-import p { margin: 10px 0; font-size: 13px; line-height: 1.6; }
+.dataset-file-label { display: grid; gap: 8px; margin: 16px 0; font-size: 13px; }
+.dataset-file-label input { width: 100%; max-width: 520px; padding: 10px; }
+.dataset-preview, .dataset-result { border: 1px solid var(--line); border-radius: 6px; padding: 15px; overflow-wrap: anywhere; }
+.dataset-preview > span { display: block; margin-top: 6px; font-size: 13px; }
+.dataset-preview ul { padding-left: 22px; font-size: 13px; line-height: 1.8; }
+.dataset-preview .primary { display: inline-flex; gap: 8px; align-items: center; padding: 10px 15px; }
+.dataset-result { margin-top: 12px; background: #f0f5ef; }
+.dataset-archive { margin-top: 20px; }
+.dataset-table-scroll { overflow-x: auto; margin-top: 14px; }
+.dataset-archive table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.dataset-archive caption { text-align: left; padding: 8px 0; font-weight: 600; }
+.dataset-archive th, .dataset-archive td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
