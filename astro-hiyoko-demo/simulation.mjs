@@ -1,0 +1,3 @@
+export const crew=[{name:'Hana',role:'Commander',color:'#f6c85b'},{name:'Kai',role:'Flight engineer',color:'#80d5dd'},{name:'Mira',role:'Life scientist',color:'#bca1ee'},{name:'Leo',role:'Systems engineer',color:'#ef9b77'},{name:'Yuna',role:'Medical officer',color:'#95d4ac'}];
+export function readings(t,alert=false){return crew.map((c,i)=>({...c,id:i,heart:alert&&i===2?112:68+i*3+Math.round(Math.sin(t*.6+i)*3),oxygen:98+(Math.sin(t*.3+i)>.7?1:0),temperature:(36.5+i*.06+Math.sin(t*.2+i)*.1).toFixed(1),flag:alert&&i===2}));}
+export function stageAt(seconds){return Math.min(4,Math.floor(seconds/2));}

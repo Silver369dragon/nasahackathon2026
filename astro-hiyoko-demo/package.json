@@ -1,0 +1,17 @@
+{
+  "name": "astro-hiyoko-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test:health": "playwright test --config=playwright.health.config.js",
+    "test": "node --test simulation.test.mjs routines.test.mjs scenarios.test.mjs social.test.mjs"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}
