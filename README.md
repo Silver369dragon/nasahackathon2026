@@ -2,18 +2,62 @@
 
 **English** | [繁體中文](README.zh-TW.md)
 
-Astro Hiyoko is a shipboard health monitoring prototype for the NASA Space Apps challenge [Create Health Monitoring Software for Astronauts on Space Missions](https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/).
+Astro Hiyoko is shipboard health monitoring software designed for space missions. It helps astronauts collect health indicators, understand changes in their own health and take follow-up action through reminders, health information and crew coordination. The project responds to the NASA Space Apps challenge [Create Health Monitoring Software for Astronauts on Space Missions](https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/).
 
-Crew members can record vital signs, see how their readings change over time and request help from the rest of the crew. The software runs locally and stores measurements in SQLite. Five fictional crew accounts support training with manual entries and simulated sensor data.
+Our proposed three-layer analysis architecture combines **rule-based assessment, personalized statistical analysis and AI explanations grounded in evidence**. Crew members manage their records in a personal app, monitoring staff review the whole crew at a monitoring station, and a shared board displays the latest readings and alerts.
+
+The current prototype runs locally, stores measurements in SQLite and provides five fictional crew accounts for training with manual entries and synthetic sensor data.
 
 ## What the health system does
 
-| Crew task | How the software supports it |
+| Feature | What crew members and monitoring staff can do |
 | --- | --- |
-| Collect vital signs | Record heart rate, oxygen saturation, blood pressure and temperature by hand or send synthetic readings with the sensor simulator. Each record retains its time and source. |
-| Review a change | Open a personal trend, compare readings taken under similar conditions and inspect the original measurements. The bilingual health assistant can answer questions about those records and cite the entries it used. |
-| Track daily health | Log exercise, measurements and post-exercise self-assessments. A NEWS2 observation form lets crew members save a partial observation and see which inputs are missing. |
-| Request help | Send a one-tap alert to crewmates and the monitoring station. The shared board shows who requested help and when. Crew members can also open first-aid training cards locally. |
+| Vital-sign monitoring | Record heart rate, oxygen saturation, blood pressure and temperature. Review each reading's time, source, measurement method and data quality. |
+| Personal health trends | Explore changes over different periods, compare readings by source and method, and open the original measurements. |
+| Personalized statistical analysis | Compare readings with personal history. Use Z-scores and an exponentially weighted moving average (EWMA) to examine deviations and sustained changes. |
+| NEWS2 observation records | Assemble physiological measurements, consciousness and oxygen information for one observation. Save partial entries and identify missing or unusable inputs. |
+| Daily health management | Log exercise time, complete measurements and post-exercise self-assessments, receive reminders, and review personal badges and team completion counts. |
+| Health assistant | Ask about personal records, training and alerts in English or Traditional Chinese. Follow up on an answer and open the original evidence it cites. |
+| Help requests and automatic alerts | Notify crewmates and the monitoring station with one tap. Use a designated synthetic heart-rate scenario to demonstrate automatic alerts. |
+| First-aid knowledge and procedure cards | Read local bilingual training materials and open relevant guidance from a health question or help-request scenario. |
+| Crew monitoring and shared display | Review crew measurement history and notifications at the station. Show the latest readings and alerts on a read-only shared screen. |
+| Local operation and storage | Save records locally and synchronize screens through live updates. Local summaries, training materials and crew alerts remain available when the cloud model is unavailable. |
+
+The full data catalog defines **33 monitoring items** across emergency monitoring (12), daily health (9) and long-term monitoring (12). The current main measurement workflow supports heart rate, oxygen saturation, blood pressure and temperature. The remaining catalog entries guide further expansion.
+
+## Three-layer health analysis architecture
+
+| Layer | Purpose | Processing and output |
+| --- | --- | --- |
+| **Layer 1 — Rule-based assessment** | Check whether readings meet specified conditions and whether an assessment has sufficient data. | Check data quality, timing and context before applying versioned rules. The design includes a NEWS2 component and total-score interface, alert reasons, triggering evidence and associated procedures. |
+| **Layer 2 — Personalized statistical analysis** | Understand how a reading differs from that crew member's usual state. | Establish a reference from historical readings with matching sources, methods and contexts. Calculate Z-scores to express deviations and use EWMA to examine sustained changes. |
+| **Layer 3 — LLM + RAG explanations** | Turn measurements, assessment results and retrieved knowledge into explanations crew members can understand. | Retrieve authorized personal records and local documents. Explain observations, reasons and missing data, provide relevant action links, and attach traceable sources. |
+
+Layer 1 uses explicit rules to identify conditions that need attention. The NEWS2 design draws on six physiological parameters and supplemental oxygen information. The system first checks input completeness, then uses an enabled scoring configuration for calculation. [Royal College of Physicians NEWS2 reference](https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/)
+
+Layer 2 accounts for individual differences. The same heart rate can represent different deviations for two crew members. A Z-score expresses the difference from a personal mean in standard deviations. EWMA smooths successive deviations to help reveal whether a change persists.
+
+Layer 3 uses a large language model (LLM) with retrieval-augmented generation (RAG) to explain the evidence. A crew member can ask which record supports an explanation or what is missing from an assessment, then open the referenced record or procedure card.
+
+The diagram shows the proposed flow between the three layers.
+
+```mermaid
+flowchart TD
+    A["Health measurements and personal records"] --> B["Data quality, timing and context checks"]
+    B --> C["Layer 1: Rules and scoring"]
+    B --> D["Layer 2: Personal reference and statistics"]
+    C --> E["Layer 3: LLM + RAG explanations"]
+    D --> E
+    K["Local knowledge and procedure cards"] --> E
+    C --> F["Alerts and crew notifications"]
+    E --> G["Source-linked explanations and action links"]
+```
+
+### Current implementation
+
+- **Layer 1** includes synthetic heart-rate alerts, NEWS2 observation records, and completeness and quality checks. The NEWS2 score remains empty while its scoring configuration is awaiting activation.
+- **Layer 2** compares readings with matching data from the preceding seven days and calculates Z-scores and EWMA. Formal reference approval, freezing and rebuilding remain part of the architecture roadmap.
+- **Layer 3** provides personal-record queries, local knowledge retrieval, citations and model-answer verification. Full integration of all three layers' outputs remains an expansion of the design.
 
 ## Start the health system on Windows
 
