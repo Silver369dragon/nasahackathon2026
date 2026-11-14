@@ -156,8 +156,23 @@ function Progress({ plan, lang }: { plan: Plan; lang: Lang }) {
   </div>
 }
 
-export function PersonalTraining({ lang, session, refreshToken, deny, showTasks, goMeasure }: CommonProps & {
-  session: Session; showTasks: boolean; goMeasure: () => void
+function BadgeSummary({ plan, lang }: { plan: Plan; lang: Lang }) {
+  const t: T = (en, zh) => tx(lang, en, zh)
+  const shortNames = [t('First', '首次'), t('3 days', '3 天'), t('7 days', '7 天')]
+  return <ul className="task-badge-summary" aria-label={t('Exercise badges', '運動徽章')}>
+    {badges.map((code, index) => {
+      const earned = plan.badges.some(award => award.code === code)
+      const status = earned ? t('Earned', '已取得') : t('Locked', '未取得')
+      return <li key={code} className={earned ? 'earned' : 'locked'} title={label(t, code) + ' · ' + status}>
+        <span className="task-badge-emblem" aria-hidden="true"><Award size={23}/>{!earned && <LockKeyhole size={10}/>}</span>
+        <span><strong>{shortNames[index]}</strong><small>{status}</small></span>
+      </li>
+    })}
+  </ul>
+}
+
+export function PersonalTraining({ lang, session, refreshToken, deny, showTasks, compact = false, goMeasure }: CommonProps & {
+  session: Session; showTasks: boolean; compact?: boolean; goMeasure: () => void
 }) {
   const { data: plan, failed, reload } = useTrainingData<Plan>('/tasks', refreshToken, deny)
   const [busy, setBusy] = useState(false)
@@ -213,9 +228,15 @@ export function PersonalTraining({ lang, session, refreshToken, deny, showTasks,
         {plan && <time dateTime={plan.date}>{plan.date} {plan.timezone}</time>}</div>
       {(failed || !plan) && <LoadNotice failed={failed} reload={reload} t={t}/>}
       {plan && <>
+        <div className="task-progress-overview"><div className="task-progress-ring" style={{ '--progress': `${plan.items.filter(task => task.status === 'completed').length / Math.max(1, plan.items.length) * 100}%` } as React.CSSProperties}>
+          <strong>{plan.items.filter(task => task.status === 'completed').length}<small>/{plan.items.length}</small></strong></div>
+          <div><h3>{t('Daily progress', '每日進度')}</h3><p>{t('Tasks completed', '已完成任務')}</p></div>
+          <BadgeSummary plan={plan} lang={lang}/></div>
+        <details className="task-details" open={compact ? undefined : true}><summary>{t('Your tasks', '你的任務')}</summary>
         <div className="training-grid">{plan.items.map(task => <TaskCard key={task.id} task={task} lang={lang}
           locked={busy} run={run} goMeasure={goMeasure}/>)}</div>
-        <Progress plan={plan} lang={lang}/>
+        </details>
+        <details className="disclosure"><summary>{t('Training history & badges', '訓練歷史與徽章')}</summary><Progress plan={plan} lang={lang}/></details>
       </>}
     </section>}
   </>
@@ -266,7 +287,7 @@ function TaskCard({ task, lang, locked, run, goMeasure }: CardProps) {
     <header><div className="training-symbol"><Icon size={19}/></div>
       <h3>{label(t, task.kind)}</h3><span className={'training-status ' + task.status}>{label(t, task.status)}</span>
     </header>
-    <p className="training-due">{t('Due', '截止')} <time dateTime={task.dueAt}>{stamp(task.dueAt, lang)}</time></p>
+    <details className="training-due"><summary>{t('Schedule', '時程')}</summary><time dateTime={task.dueAt}>{stamp(task.dueAt, lang)}</time></details>
     {task.snoozedUntil && open && !task.reminderActive && <p className="training-detail">{t('Reminder deferred until', '提醒已延後至')} {stamp(task.snoozedUntil, lang)}</p>}
     {open && <fieldset className="training-fields" disabled={locked}>
       {task.kind === 'exercise' && (started ? <>

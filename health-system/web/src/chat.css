@@ -11,3 +11,19 @@
 .chat-compose { display: grid; gap: 8px; }
 .chat-compose textarea { width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; padding: 10px; resize: vertical; }
 .chat-compose button { justify-self: end; }
+.chat-toolbar p { display: flex; align-items: center; gap: 9px; color: var(--accent); font-size: 14px; }
+.chat-turn { border-left: 4px solid var(--accent); }
+.chat-turn > p { margin: 14px 0; }
+.chat-evidence { border-top: 1px solid var(--line); margin-bottom: 0; }
+.chat-evidence > summary { padding-bottom: 0; }
+@media(max-width: 650px) {
+  .chat-workspace { gap: 12px; }
+  .chat-toolbar .secondary { padding: 7px 9px; font-size: 11px; }
+  .chat-turn, .chat-compose { padding: 15px; }
+  .chat-turn h3 { font-size: 20px; line-height: 1.2; }
+  .chat-turn > p { font-size: 15px; line-height: 1.55; }
+  .chat-turn small { font-size: 10px; }
+  .chat-compose label { font-size: 12px; }
+  .chat-compose textarea { font-size: 14px; }
+  .chat-starters { display: grid; }
+}

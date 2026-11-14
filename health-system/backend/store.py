@@ -13,7 +13,16 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .models import BP, UNITS, ManualBatch, Telemetry, utc_text
+from .models import (
+    BP,
+    UNITS,
+    ManualBatch,
+    Telemetry,
+    WorkOfBreathing,
+    canonical_code,
+    canonical_measurement,
+    utc_text,
+)
 
 Data = dict[str, Any]
 CREW = ("mira", "kai", "lin", "noa", "sol")
@@ -114,6 +123,12 @@ def initialize(path: Path) -> bytes:
             db.execute("INSERT OR IGNORE INTO crew VALUES(?,?)", (crew, crew.title()))
             db.execute("INSERT OR IGNORE INTO devices VALUES(?,?,?,?,NULL,NULL)",
                        ("mock-" + crew, "assignment-" + crew, crew, "1970-01-01T00:00:00.000000Z"))
+        legacy = db.execute("SELECT id,document FROM measurements WHERE "
+                            "json_extract(document,'$.schemaVersion') IS NOT '1.3'").fetchall()
+        for measurement in legacy:
+            document = canonical_measurement(json.loads(measurement["document"]))
+            db.execute("UPDATE measurements SET metric=?,document=? WHERE id=?",
+                       (document["metricCode"], encoded(document), measurement["id"]))
         for row in db.execute("SELECT id FROM crew").fetchall():
             update_summary(db, row["id"], "initialize")
         return bytes.fromhex(db.execute("SELECT value FROM settings WHERE key='cursor_secret'").fetchone()[0])
@@ -143,7 +158,7 @@ def cursor_position(secret: bytes, scope: list[Any], token: str) -> Any:
 
 def append_event(db: sqlite3.Connection, crew: str, event: str, document: Data, version: int,
                  entity_id: str, cause: str) -> None:
-    payload = {"schemaVersion": "1.2", "runId": None, "scopeVersion": 1, "entityId": entity_id,
+    payload = {"schemaVersion": "1.3", "runId": None, "scopeVersion": 1, "entityId": entity_id,
                "entityVersion": version, "occurredAt": now_text(), "causationId": cause,
                "operation": "upsert", "payload": document}
     db.execute("INSERT INTO changes(crew_id,kind,occurred,document) VALUES(?,?,?,?)",
@@ -159,7 +174,7 @@ def update_summary(db: sqlite3.Connection, crew: str, cause: str) -> None:
     deadlines: list[float] = []
     cards = []
     for code in UNITS:
-        primary = "mock" if code in ("heart_rate", "spo2") else "manual"
+        primary = "mock" if code in ("heart_rate", "spo2", "respiratory_rate", "work_of_breathing") else "manual"
         query = "SELECT document FROM measurements WHERE crew_id=? AND metric=? AND live=1 "
         order = " ORDER BY observed DESC,row_id DESC LIMIT 1"
         source_clause = "AND json_extract(document,'$.provenance.source')=? "
@@ -176,7 +191,7 @@ def update_summary(db: sqlite3.Connection, crew: str, cause: str) -> None:
         freshness = "no_data"
         if latest:
             freshness = "last_measurement"
-            if latest["provenance"]["source"] == "mock" and code in ("heart_rate", "spo2"):
+            if latest["provenance"]["source"] == "mock" and code in ("heart_rate", "spo2", "respiratory_rate", "work_of_breathing"):
                 freshness = "stale"
                 if valid and valid["provenance"]["source"] == "mock":
                     observed = datetime.fromisoformat(valid["observedAt"]).timestamp()
@@ -235,9 +250,10 @@ def check_cursor_window(db: sqlite3.Connection, position: int) -> None:
 
 
 def project_measurement(document: Data, view: str) -> Data:
+    document = canonical_measurement(document)
     if view == "personal":
         return document
-    public_context = ("activity", "posture", "measurementSite", "temperatureType")
+    public_context = ("activity", "posture", "measurementSite", "temperatureType", "observationDuration", "sensor")
     result = {**document, "context": {k: v for k, v in document["context"].items() if k in public_context}}
     if view == "system_display":
         allowed = ("id", "subject", "metricCode", "value", "unit", "observedAt", "receivedAt",
@@ -328,15 +344,20 @@ def write_measurements(db: sqlite3.Connection, batch: ManualBatch | Telemetry, a
                   "upstreamSampleId": batch.upstreamSampleId if isinstance(batch, Telemetry) else None}
     bp = {m.code: m for m in batch.metrics if m.code in BP}
     sys, dia = bp.get("blood_pressure_systolic"), bp.get("blood_pressure_diastolic")
-    reversed_bp = bool(sys and dia and sys.value is not None and dia.value is not None and sys.value <= dia.value)
+    reversed_bp = bool(
+        sys and dia and isinstance(sys.value, (int, float)) and isinstance(dia.value, (int, float))
+        and sys.value <= dia.value
+    )
     for metric in batch.metrics:
         ident = str(uuid4())
         invalid_order = metric.code in BP and reversed_bp and metric.quality == "good"
         quality = "invalid" if invalid_order else metric.quality
         reason = "pressure_order" if invalid_order else metric.qualityReason or metric.missingReason
-        row = {"id": ident, "schemaVersion": "1.2", "runId": None, "mode": "training",
-               "subject": {"type": "crew", "id": crew}, "metricCode": metric.code, "value": metric.value,
-               "unit": metric.unit, "observedAt": observed, "receivedAt": received,
+        row = {"id": ident, "schemaVersion": "1.3", "runId": None, "mode": "training",
+               "subject": {"type": "crew", "id": crew}, "metricCode": canonical_code(metric.code),
+               "value": metric.value.model_dump(mode="json", exclude_none=True)
+               if isinstance(metric.value, WorkOfBreathing) else metric.value,
+               "unit": UNITS[canonical_code(metric.code)], "observedAt": observed, "receivedAt": received,
                "clockStatus": batch.clockStatus if isinstance(batch, Telemetry) else "synced",
                "scenarioTimeMs": None, "method": batch.method if isinstance(batch, ManualBatch) else metric.method,
                "context": batch.context if isinstance(batch, ManualBatch) else metric.context,
@@ -347,7 +368,7 @@ def write_measurements(db: sqlite3.Connection, batch: ManualBatch | Telemetry, a
                "actorId": actor, "causationId": cause,
                "deliveryKind": batch.deliveryKind if isinstance(batch, Telemetry) else "live"}
         db.execute("INSERT INTO measurements(id,crew_id,metric,observed,quality,live,document) VALUES(?,?,?,?,?,?,?)",
-                   (ident, crew, metric.code, observed, quality, live, encoded(row)))
+                   (ident, crew, row["metricCode"], observed, quality, live, encoded(row)))
         append_event(db, crew, "measurement.accepted", row, 1, ident, cause)
         if metric.code == "heart_rate":
             evaluations, alerts = evaluate_heart_rate(db, row, live)

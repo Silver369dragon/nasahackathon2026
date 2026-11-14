@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api, restricted } from './api'
-import { stamp, tx, type Lang, type Measurement } from './domain'
-import { label } from './labels'
+import { displayUnit, prettyValue, stamp, tx, workOfBreathingFields, type Lang, type Measurement } from './domain'
+import { contextLabels, label } from './labels'
 import type { Assessment } from './news2'
 import { AssessmentEvidence } from './AssessmentForm'
 import './chat-source.css'
@@ -65,13 +65,14 @@ function fields(result: Exclude<RecordResult, {kind: 'knowledge' | 'assessment'}
   const time = (s?: string) => s ? stamp(s, lang) : undefined
   if (result.kind === 'measurement') {
     const m = result.record
-    const context = Object.values(m.context).filter((s): s is string => typeof s === 'string' && !!s)
+    const context = contextLabels(m.context, lang)
     return [
-      [readable(m.metricCode, lang), m.value === null ? t('Missing', '缺值') : m.value + ' ' + m.unit],
+      [readable(m.metricCode, lang), m.value === null ? t('Missing', '缺值') : (prettyValue(m, true, lang) + ' ' + displayUnit(m.unit, m.metricCode)).trim()],
+      ...(m.value && typeof m.value === 'object' ? workOfBreathingFields(m.value, lang) : []),
       [t('Observed', '量測時間'), time(m.observedAt)], [t('Source', '來源'), translated(m.provenance.source)],
       [t('Method', '方法'), translated(m.method)], [t('Quality', '品質'), translated(m.quality)],
       [t('Quality note', '品質說明'), m.qualityReason ?? undefined],
-      [t('Context', '量測情境'), context.map(s => readable(s, lang)).join(' · ') || t('Unrecorded', '未記錄')],
+      [t('Context', '量測情境'), context.join(' · ') || t('Unrecorded', '未記錄')],
       [t('Data origin', '資料性質'), m.provenance.isSynthetic ? t('Synthetic', '合成資料') : translated(m.provenance.dataOrigin)],
     ]
   }

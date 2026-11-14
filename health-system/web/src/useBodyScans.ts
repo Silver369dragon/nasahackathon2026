@@ -37,6 +37,7 @@ export function useBodyScans(session: Session, deny: () => void) {
   const busy = useRef(false)
   const paging = useRef(false)
   const refreshing = useRef<AbortController | null>(null)
+  const historyPending = useRef(true)
 
   const denied = useCallback((err: unknown) => {
     if (!restricted(err) || (err instanceof ApiError && err.code === 'BODY_DEMO_DISABLED')) return false
@@ -47,17 +48,20 @@ export function useBodyScans(session: Session, deny: () => void) {
     const controller = lifecycle.current
     if (!controller || controller.signal.aborted || refreshing.current === controller) return
     refreshing.current = controller
+    if (first) historyPending.current = true
     try {
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10000)])
       const data = await api<LatestScan>('/body-scans/latest', { signal })
       if (controller.signal.aborted) return
-      setLatest(previous => keepLatest(previous,data.scan)); setDemoEnabled(data.demoEnabled); setOffline(false); setLoaded(true)
+      setLatest(previous => keepLatest(previous,data.scan)); setDemoEnabled(data.demoEnabled); setLoaded(true)
       if (data.scan) setItems(previous => mergeScans(previous,[data.scan!]))
-      if (first) {
+      if (historyPending.current) {
         const history = await api<ScanList>('/body-scans?limit=20', { signal })
         if (controller.signal.aborted) return
         setItems(previous => mergeScans(previous, history.items)); setNextCursor(history.nextCursor)
+        historyPending.current = false
       }
+      setOffline(false)
     } catch (err) {
       if (!controller.signal.aborted && !denied(err)) { setOffline(true); setLoaded(true) }
     } finally { if (refreshing.current === controller) refreshing.current = null }

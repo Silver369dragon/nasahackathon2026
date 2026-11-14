@@ -101,14 +101,15 @@ export function buildShip(crew){
    g.scale.set(1/SHIP_SCALE.x,1/SHIP_SCALE.y,1/SHIP_SCALE.z);root.add(g);g.add(body);
    const suit=mat(c.color),legs=[],arms=[];
    box(.6,.72,.38,0,.94,0,suit,body);box(.62,.12,.4,0,.62,0,dark,body);
-   sphere(.31,0,1.48,0,cream,body);const visor=sphere(.28,0,1.5,.22,glass,body);visor.scale.set(1,.68,.7);
+   const head=new THREE.Group();head.position.y=1.48;body.add(head);
+   sphere(.31,0,0,0,cream,head);const visor=sphere(.28,0,.02,.22,glass,head);visor.scale.set(1,.68,.7);
    for(const x of [-.18,.18]){const leg=new THREE.Group();leg.position.set(x,.62,0);body.add(leg);box(.23,.5,.25,0,-.25,0,cream,leg);box(.27,.12,.42,0,-.54,.08,dark,leg);box(.24,.12,.27,0,-.3,.01,suit,leg);legs.push(leg);}
    for(const x of [-.43,.43]){const arm=new THREE.Group();arm.position.set(x,1.2,0);body.add(arm);box(.2,.58,.23,0,-.26,.05,suit,arm);sphere(.11,0,-.56,.05,cream,arm);arms.push(arm);}
    box(.35,.45,.2,0,.95,-.28,dark,body);box(.28,.18,.04,0,1,.21,cream,body);
    const d=canvasScreen(256,384),phone=box(.34,.48,.07,.48,.91,.25,dark,body);
    const face=new THREE.Mesh(new THREE.PlaneGeometry(.29,.42),new THREE.MeshBasicMaterial({map:d.texture,side:THREE.DoubleSide}));face.position.set(.48,.91,.291);body.add(face);devices.push(d);
    const ring=new THREE.Mesh(new THREE.TorusGeometry(.67,.025,6,32),new THREE.MeshBasicMaterial({color:c.color}));ring.rotation.x=-Math.PI/2;ring.position.y=.025;g.add(ring);
-   g.traverse(o=>{if(o.isMesh){o.userData={kind:'crew',id:i};pickables.push(o);}});phone.userData={kind:'phone',id:i};face.userData={kind:'phone',id:i};people.push({g,body,legs,arms,ring,phone:face});
+   g.traverse(o=>{if(o.isMesh){o.userData={kind:'crew',id:i};pickables.push(o);}});phone.userData={kind:'phone',id:i};face.userData={kind:'phone',id:i};people.push({g,body,head,legs,arms,ring,phone:face,phoneCase:phone});
  });
  dressCabin(root,zones,crew,SHIP_SCALE);
  zones.forEach((zone,i)=>{const s=sign(zone.label,zone.x,3.2,zone.z,i>0&&i<6?crew[i-1].color:'#c1e4e6',zone.id==='cockpit'?4:3.5);s.userData={kind:'zone',id:zone.id};pickables.push(s);});

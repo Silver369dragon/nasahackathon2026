@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, restricted } from './api'
 import { ChatSource } from './ChatSource'
-import { metrics, stamp, tx, type Lang } from './domain'
-import { label } from './labels'
+import { monitoringMetrics, displayUnit, stamp, tx, type Lang, type MeasurementContext } from './domain'
+import { contextLabels, label } from './labels'
 import './trends.css'
 
 type Point = { id: string; observedAt: string; quality: string; value: number | null; segment?: number }
 type Series = {
-  source: string; method: string; origin: string; unit: string; context: Record<string, string>; synthetic: boolean
+  source: string; method: string; origin: string; unit: string; context: MeasurementContext; synthetic: boolean
   count: number; valid: number; points: Point[]; latest: Point
   reference: { count: number; mean: number | null; sd: number | null; z: number | null; ewma: number | null }
 }
 type Result = { from: string; to: string; referenceFrom: string; referenceTo: string; series: Series[] }
 const number = (v: number | null, lang: Lang) => v === null ? '—' : v.toLocaleString(lang, { maximumFractionDigits: 2 })
-const unitOf = (unit: string) => unit === 'Cel' ? '°C' : unit
+const metrics = monitoringMetrics.filter(metric => metric.code !== 'work_of_breathing')
 const unique = (values: string[]) => [...new Set(values)].sort()
 
-function TrendChart({ group, start, end, lang, select }: {
-  group: Series; start: string; end: string; lang: Lang; select: (point: Point) => void
+function TrendChart({ group, start, end, lang, select, metricCode }: {
+  group: Series; start: string; end: string; lang: Lang; select: (point: Point) => void; metricCode: string
 }) {
   const values = group.points.map(p => p.value as number)
   if (!values.length) return <p>{tx(lang, 'No valid readings to plot.', '這段期間沒有可繪圖的有效值。')}</p>
@@ -25,26 +25,26 @@ function TrendChart({ group, start, end, lang, select }: {
   const pad = Math.max((max - min) * .12, group.unit === 'Cel' ? .1 : 1)
   const low = min - pad, high = max + pad
   const first = Date.parse(start), duration = Date.parse(end) - first
-  const x = (p: Point) => 49 + 565 * (Date.parse(p.observedAt) - first) / duration
-  const y = (p: Point) => 20 + 112 * (high - (p.value as number)) / (high - low)
+  const x = (p: Point) => 40 + 310 * (Date.parse(p.observedAt) - first) / duration
+  const y = (p: Point) => 20 + 140 * (high - (p.value as number)) / (high - low)
   const path = group.points.map((p, i, points) =>
     (i && p.segment === points[i - 1].segment ? 'L' : 'M') + x(p) + ',' + y(p)).join(' ')
   return <div className="trend-plot">
-    <svg viewBox="0 0 632 152" role="img" aria-label={tx(lang, 'Valid observations over time', '有效量測隨時間的變化')}>
+    <svg viewBox="0 0 360 180" role="img" aria-label={tx(lang, 'Valid observations over time', '有效量測隨時間的變化')}>
       {[high, (high + low) / 2, low].map((v, i) => <g key={i}>
-        <line x1="49" x2="615" y1={20 + 56 * i} y2={20 + 56 * i}/>
-        <text x="44" y={24 + 56 * i} textAnchor="end">{number(v, lang)}</text>
+        <line x1="40" x2="350" y1={20 + 70 * i} y2={20 + 70 * i}/>
+        <text x="34" y={24 + 70 * i} textAnchor="end">{number(v, lang)}</text>
       </g>)}
       <path d={path} fill="none" stroke="var(--accent)" strokeWidth="2"/>
       {group.points.map(p => <circle key={p.id} cx={x(p)} cy={y(p)} r="3" onClick={() => select(p)}>
-        <title>{stamp(p.observedAt, lang)} · {p.value} {unitOf(group.unit)}</title>
+        <title>{stamp(p.observedAt, lang)} · {p.value} {displayUnit(group.unit, metricCode)}</title>
       </circle>)}
     </svg>
-    <div className="trend-axis"><span>{stamp(start, lang)}</span><span>{stamp(end, lang)}</span></div>
+    <div className="trend-axis"><span>{new Date(start).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span><span>UTC</span><span>{new Date(end).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span></div>
   </div>
 }
 
-function Group({ group, data, lang, deny }: { group: Series; data: Result; lang: Lang; deny: () => void }) {
+function Group({ group, data, lang, deny, metricCode }: { group: Series; data: Result; lang: Lang; deny: () => void; metricCode: string }) {
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const [pointId, setPointId] = useState('')
   const points = [...group.points].reverse()
@@ -52,15 +52,16 @@ function Group({ group, data, lang, deny }: { group: Series; data: Result; lang:
   const point = points.find(p => p.id === pointId) ?? group.latest
   const ref = group.reference
   return <article className="trend-series panel">
-    <h2>{[label(group.source, lang), label(group.method, lang), ...Object.values(group.context).map(s => label(s, lang))].join(' · ')}</h2>
-    <p>{group.synthetic && t('Synthetic · ', '合成資料 · ')}{group.valid} / {group.count} {t('valid samples', '筆有效樣本')}</p>
-    <TrendChart group={group} start={data.from} end={data.to} lang={lang} select={p => setPointId(p.id)}/>
+    <div className="trend-headline"><div><span>{t('Latest reading', '最近量測')}</span><strong>{group.latest.quality === 'good' ? number(group.latest.value, lang) : '—'}<small>{displayUnit(group.unit, metricCode)}</small></strong></div>
+      <div className="trend-quality">{group.synthetic && <span className="simulation-label">{t('Simulation', '模擬資料')}</span>}<span>{group.valid} {t('valid samples', '筆有效樣本')}</span></div></div>
+    <TrendChart group={group} start={data.from} end={data.to} lang={lang} select={p => setPointId(p.id)} metricCode={metricCode}/>
     <div className="trend-stats">
-      <div><small>{t('Latest reading', '最近一筆')}</small><strong>{group.latest.quality === 'good' ? number(group.latest.value, lang) : '—'} <small>{unitOf(group.unit)}</small></strong></div>
       <div><small>{t('Prior 7-day mean', '前七天參考平均')}</small><strong>{ref.count >= 30 ? number(ref.mean, lang) : '—'}</strong></div>
       <div><small>Z-score</small><strong>{number(ref.z, lang)}</strong></div>
       <div><small>EWMA</small><strong>{number(ref.ewma, lang)}</strong></div>
     </div>
+    <details className="disclosure trend-evidence" open={pointId ? true : undefined}><summary>{t('Sources & observations', '來源與量測資料')}</summary>
+    <h2>{[label(group.source, lang), label(group.method, lang), ...contextLabels(group.context, lang)].join(' · ')}</h2>
     <p>{t('Reference period', '比較期間')} {stamp(data.referenceFrom, lang)} – {stamp(data.referenceTo, lang)} · {ref.count} {t('comparable valid samples', '筆同條件有效樣本')}
       {ref.count < 30 ? t(' (30 required).', '（至少需 30 筆）。') :
         (ref.sd ?? 0) <= 1e-9 ? t(' · No measurable variation.', ' · 樣本變異不足。') :
@@ -68,9 +69,10 @@ function Group({ group, data, lang, deny }: { group: Series; data: Result; lang:
     </p>
     <label className="trend-record">{t('Select observation', '選擇量測點')}
       <select aria-label={t('Select observation', '選擇量測點')} value={point.id} onChange={e => setPointId(e.target.value)}>{points.map(p =>
-        <option key={p.id} value={p.id}>{stamp(p.observedAt, lang)} · {number(p.value, lang)} {unitOf(group.unit)} · {label(p.quality, lang)}</option>)}</select>
+        <option key={p.id} value={p.id}>{stamp(p.observedAt, lang)} · {number(p.value, lang)} {displayUnit(group.unit, metricCode)} · {label(p.quality, lang)}</option>)}</select>
     </label>
     <ChatSource key={point.id} citation={{ kind: 'measurement', id: point.id, title: stamp(point.observedAt, lang) }} lang={lang} deny={deny}/>
+    </details>
   </article>
 }
 
@@ -132,27 +134,28 @@ export function Trends({ lang, deny, revision }: { lang: Lang; deny: () => void;
       <div className="trend-periods" aria-label={t('Time range', '時間範圍')}>{periods.map((p, i) =>
         <button key={p} aria-pressed={period === p} onClick={() => setPeriod(p)}>
           {lang === 'en' ? ['1 hour','24 hours','7 days','30 days','Custom'][i] : ['1 小時','24 小時','7 天','30 天','自訂'][i]}</button>)}</div>
-      {period === 'custom' && <div className="trend-fields">
+      {period === 'custom' && <details className="trend-custom" open><summary>{t('Custom dates', '自訂日期')}</summary><div className="trend-fields">
         <label>{t('From (UTC)', '開始（UTC）')}<input type="datetime-local" value={start} onChange={e => setStart(e.target.value)}/></label>
         <label>{t('To (UTC)', '結束（UTC）')}<input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)}/></label>
-      </div>}
+      </div></details>}
       <div className="trend-fields">
         <label>{t('Metric', '指標')}<select aria-label={t('Metric', '指標')} value={metric} onChange={e => { setMetric(e.target.value); setSource(''); setMethod('') }}>
           {metrics.flatMap(m => m.fields.map(field => <option key={field} value={field}>{t(m.en, m.zh)}
             {field.includes('systolic') ? t(' · Systolic',' · 收縮壓') : field.includes('diastolic') ? t(' · Diastolic',' · 舒張壓') : ''}</option>))}
         </select></label>
-        <label>{t('Source', '來源')}<select aria-label={t('Source', '來源')} value={source} onChange={e => { setSource(e.target.value); setMethod('') }}>
+        <details className="trend-filters"><summary>{t('Filters', '篩選')}</summary><div className="trend-fields"><label>{t('Source', '來源')}<select aria-label={t('Source', '來源')} value={source} onChange={e => { setSource(e.target.value); setMethod('') }}>
           <option value="">{t('All sources','全部來源')}</option>{unique([...groups.map(g => g.source), ...(source ? [source] : [])]).map(v => <option key={v} value={v}>{label(v,lang)}</option>)}
         </select></label>
         <label>{t('Method', '量測方法')}<select aria-label={t('Method', '量測方法')} value={method} onChange={e => setMethod(e.target.value)}>
           <option value="">{t('All methods','全部方法')}</option>{unique([...methods, ...(method ? [method] : [])]).map(v => <option key={v} value={v}>{label(v,lang)}</option>)}
         </select></label>
+        </div></details>
       </div>
     </div>
     {!valid ? <p className="panel empty-state">{t('Select a start and a later end time in UTC.', '請選擇開始與結束時間（UTC），結束須晚於開始。')}</p> :
       error ? <p className="panel empty-state" role="alert">{t('Could not update trends.', '無法更新趨勢。')} <button onClick={() => setRetry(n => n + 1)}>{t('Retry','重試')}</button></p> :
       !data ? <p className="panel empty-state">{t('Loading trends…','正在讀取趨勢…')}</p> :
       !filtered.length ? <p className="panel empty-state">{t('No matching readings in this period.','這段期間沒有符合條件的量測。')}</p> :
-      filtered.map(g => <Group key={JSON.stringify([metric,g.source,g.method,g.origin,g.synthetic,g.context])} group={g} data={data} lang={lang} deny={deny}/>)}
+      filtered.map(g => <Group key={JSON.stringify([metric,g.source,g.method,g.origin,g.synthetic,g.context])} group={g} data={data} lang={lang} deny={deny} metricCode={metric}/>)}
   </section>
 }

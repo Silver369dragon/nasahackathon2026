@@ -4,7 +4,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { Pause, Play, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 import { stationBase } from './api'
@@ -65,11 +64,12 @@ export default function BodyScene(props: Props) {
     controls.touches.ONE = THREE.TOUCH.ROTATE
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
     controls.update()
+    // Keep color conversion, but avoid the eleven extra floating-point targets
+    // and repeated blur passes used by continuous bloom.
     const composer = new EffectComposer(renderer)
     const renderPass = new RenderPass(scene,camera)
-    const bloom = new UnrealBloomPass(new THREE.Vector2(256,256),.45,.4,.55)
     const output = new OutputPass()
-    composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(output)
+    composer.addPass(renderPass); composer.addPass(output)
     const model = new THREE.Group()
     scene.add(model)
     const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>[] = []
@@ -227,7 +227,7 @@ export default function BodyScene(props: Props) {
       meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.material.dispose() })
       particles.forEach(points=>{points.geometry.dispose();points.material.dispose()})
       markerTexture.dispose(); markerMaterial.dispose()
-      projector.dispose(); renderPass.dispose(); bloom.dispose(); output.dispose(); composer.dispose()
+      projector.dispose(); renderPass.dispose(); output.dispose(); composer.dispose()
       renderer.dispose(); renderer.forceContextLoss(); canvas.remove()
     }
   }, [])

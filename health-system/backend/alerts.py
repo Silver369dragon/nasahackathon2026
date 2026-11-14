@@ -22,7 +22,7 @@ DEFINITION = {
     "qualityRequirements": ["good"], "freshnessRequirements": {"maxAgeSeconds": FRESH_SECONDS},
     "contextRequirements": {"activity": "rest", "source": "mock", "isSynthetic": True,
                             "dataOrigin": "synthetic", "deliveryKind": "live"},
-    "condition": {"operator": ">", "value": THRESHOLD, "unit": "bpm"},
+    "condition": {"operator": ">", "value": THRESHOLD, "unit": "/min"},
     "persistence": {"bucketSeconds": 1, "consecutiveBuckets": REQUIRED_BUCKETS},
     "clearCondition": {"operator": "<=", "value": THRESHOLD, "consecutiveBuckets": REQUIRED_BUCKETS},
     "severity": "recheck", "createIncident": False, "incidentType": None,

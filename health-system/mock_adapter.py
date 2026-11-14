@@ -17,7 +17,7 @@ SCENARIOS = ("stable", "high", "recovery", "missing", "offline")
 DEFAULT_URL = "http://127.0.0.1:8000"
 
 
-def metric(code: str, value: float | None, unit: str, **context: str) -> dict[str, Any]:
+def metric(code: str, value: float | None, unit: str, **context: str | float) -> dict[str, Any]:
     item = {
         "code": code, "value": value, "unit": unit, "method": "mock_generated",
         "quality": "good", "qualityReason": None, "context": context,
@@ -41,17 +41,24 @@ def build_packet(crew_id: str, scenario: str, boot_id: str, seq: int, observed_a
         elif scenario == "missing":
             heart_rate = None
     metrics = [
-        metric("heart_rate", heart_rate, "bpm", activity="rest"),
+        metric("heart_rate", heart_rate, "/min", activity="rest"),
         metric("spo2", 97 + offset % 3, "%", measurementSite="finger"),
         metric("temperature", round(36.6 + offset / 10, 1), "Cel", measurementSite="oral", temperatureType="oral"),
     ]
+    respiration = metric("respiratory_rate", None if scenario == "missing" and crew_id == "mira" else 16,
+                         "/min", observationDuration=60)
+    if respiration["value"] is None:
+        respiration.update(qualityReason="sensor_not_responding", missingReason="sensor_not_responding")
+    effort = metric("work_of_breathing", None, "1")
+    effort.update(qualityReason="scale_not_configured", missingReason="scale_not_configured")
+    metrics.extend((respiration, effort))
     if crew_id != "mira":
         for code, value in (("systolic", 117 + offset), ("diastolic", 74 + offset)):
-            component = metric(f"blood_pressure_{code}", value, "mmHg", posture="seated")
+            component = metric(f"blood_pressure_{code}", value, "mm[Hg]", posture="seated")
             component["measurementGroupId"] = f"{message_id}:bp"
             metrics.append(component)
     return {
-        "schemaVersion": "1.2", "messageId": message_id, "runId": None, "deviceId": device,
+        "schemaVersion": "1.3", "messageId": message_id, "runId": None, "deviceId": device,
         "assignmentId": f"assignment-{crew_id}", "bootId": boot_id, "seq": seq,
         "observedAt": observed_at, "deviceUptimeMs": (seq - 1) * 1000, "clockStatus": "synced",
         "mode": "training", "source": "mock", "dataOrigin": "synthetic", "transport": "http",

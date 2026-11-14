@@ -1,4 +1,4 @@
-"""Version 1.2 measurement dictionary for the local training workspace."""
+"""Version 1.3 measurement dictionary for the local training workspace."""
 
 from typing import Any
 
@@ -10,7 +10,7 @@ _SOURCES = {
     "R": ("replay",),
 }
 _CATEGORIES = {"E": "emergency", "D": "daily", "L": "long_term"}
-_CORE = {"heart_rate", "spo2", "blood_pressure", "temperature"}
+_CORE = {"heart_rate", "spo2", "blood_pressure", "temperature", "respiratory_rate", "work_of_breathing"}
 
 
 def field(name: str, data_type: str, units: str = "", **metadata: Any) -> dict[str, Any]:
@@ -40,7 +40,7 @@ def _metric(
         "enabled": code in _CORE, "requiredContext": list(context),
         **({"assessmentForm": "news2"} if code in ("respiratory_rate","neurological_assessment") else {}),
         "formSchema": fields, "numericTrendFields": list(trends),
-        "schemaVersion": "1.2",
+        "schemaVersion": "1.3",
     }
 
 
@@ -50,8 +50,8 @@ CATALOG = [
         field("measurementSite", "coded"), field("oxygenScale", "coded"),
     ], unit="%", precision=0, context=("measurementSite",), trends=("value",)),
     _metric("E02", "heart_rate", "心率", "Heart rate", "number", "MSHFR", [
-        field("value", "number", "bpm"), field("activity", "coded"),
-    ], unit="bpm", precision=0, context=("activity",), trends=("value",)),
+        field("value", "number", "/min"), field("activity", "coded"),
+    ], unit="/min", display_unit="bpm", precision=0, context=("activity",), trends=("value",)),
     _metric("E03", "ecg", "心電圖", "Electrocardiogram", "series", "MSHR", [
         field("samples", "number[]", "mV"), field("sampleRate", "number", "Hz"),
         field("timeOffsets", "number[]", "ms"), field("startTime", "datetime"),
@@ -60,10 +60,10 @@ CATALOG = [
         field("attachmentHash", "text"),
     ], alternative_types=("attachment",)),
     _metric("E04", "blood_pressure", "血壓", "Blood pressure", "record", "MSHFR", [
-        field("systolic", "number", "mmHg", metricCode="blood_pressure_systolic"),
-        field("diastolic", "number", "mmHg", metricCode="blood_pressure_diastolic"),
+        field("systolic", "number", "mm[Hg]", metricCode="blood_pressure_systolic"),
+        field("diastolic", "number", "mm[Hg]", metricCode="blood_pressure_diastolic"),
         field("measurementGroupId", "text"), field("posture", "coded"),
-    ], unit="mmHg", precision=0, context=("posture",), trends=("systolic", "diastolic")),
+    ], unit="mm[Hg]", display_unit="mmHg", precision=0, context=("posture",), trends=("systolic", "diastolic")),
     _metric("E05", "temperature", "體溫", "Body temperature", "number", "MSHFR", [
         field("value", "number", "Cel"), field("measurementSite", "coded"),
         field("temperatureType", "coded"),
@@ -77,7 +77,7 @@ CATALOG = [
         field("dyspnea", "coded"), field("accessoryMuscleUse", "boolean"),
         field("speakingAbility", "coded"), field("scaleId", "text"), field("scaleVersion", "text"),
         field("score", "number"), field("notes", "text"),
-    ]),
+    ], unit="1"),
     _metric("E08", "symptom_assessment", "症狀評估", "Symptom assessment", "record[]", "MS", [
         field("symptom", "coded", examples=["chest_pain", "dyspnea", "headache", "dizziness", "nausea", "pain"]),
         field("onset", "datetime"), field("severity", "coded/number"),
@@ -107,10 +107,10 @@ CATALOG = [
         field("depressurization", "coded"),
     ], unit="kPa", context=("cabinZone",), trends=("value", "changeRate")),
     _metric("D01", "resting_heart_rate", "靜息心率", "Resting heart rate", "number", "MSHR", [
-        field("value", "number", "bpm"), field("restConditions", "record"),
+        field("value", "number", "/min"), field("restConditions", "record"),
         field("periodStart", "datetime"), field("periodEnd", "datetime"),
         field("sourceMeasurementIds", "text[]"),
-    ], unit="bpm", context=("restConditions",), trends=("value",)),
+    ], unit="/min", context=("restConditions",), trends=("value",)),
     _metric("D02", "hrv", "心率變異度", "Heart rate variability", "record", "MSHR", [
         field("rmssd", "number", "ms"), field("beatIntervals", "number[]", "ms"),
         field("intervalSource", "text"), field("analysisWindow", "number", "s"),
@@ -170,8 +170,8 @@ CATALOG = [
         field("completion", "number", "%", minimum=0, maximum=100), field("recovery", "number", "min"),
     ], trends=("duration", "completion", "recovery")),
     _metric("L05", "orthostatic_assessment", "姿勢變化評估", "Orthostatic assessment", "record", "MSHR", [
-        field("posture", "coded"), field("relativeTime", "number", "s"), field("heartRate", "number", "bpm"),
-        field("systolic", "number", "mmHg"), field("diastolic", "number", "mmHg"),
+        field("posture", "coded"), field("relativeTime", "number", "s"), field("heartRate", "number", "/min"),
+        field("systolic", "number", "mm[Hg]"), field("diastolic", "number", "mm[Hg]"),
         field("symptoms", "coded[]"),
     ], trends=("heartRate", "systolic", "diastolic")),
     _metric("L06", "bone_assessment", "骨骼評估", "Bone assessment", "record", "MSHR", [

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { stationCrew } from './config.mjs';
+import { playbackRequest } from './dataset-playback.mjs';
 const root=fileURLToPath(new URL('.',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json'};
 const port = Number(process.env.SHIP_PORT || 4173);
@@ -95,6 +96,10 @@ http.createServer(async (req, res) => {
   try {
     if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(req.headers.host)) return res.writeHead(403).end();
     const url = new URL(req.url, 'http://localhost');
+    if (url.pathname === '/api/playback' || url.pathname.startsWith('/api/playback/')) {
+      await playbackRequest(req, res, url.pathname, upstream);
+      return;
+    }
     const station = /^\/stations\/([a-z]+)(\/.*)$/.exec(url.pathname);
     if (station) {
       try { await stationRequest(req, res, station[1], station[2], url.search); }
@@ -110,7 +115,7 @@ http.createServer(async (req, res) => {
       else res.end();
       return;
     }
-    if (url.pathname === '/health/app' || url.pathname === '/health/board') {
+    if (url.pathname === '/health/app' || url.pathname === '/health/board' || url.pathname === '/health/system') {
       await openHealthPage(req, res, url.pathname.slice('/health'.length));
       return;
     }

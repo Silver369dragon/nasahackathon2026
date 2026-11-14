@@ -4,6 +4,8 @@ import { stamp, tx, type Lang, type Session } from './domain'
 import { activeFindings, bodyNumber, compareScans, fatPercent, presetLabels, regionLabel, regions,
   type BodyFinding, type BodyLayer, type RegionCode, type ScanPreset, type ValueComparison } from './body-map'
 import { useBodyScans } from './useBodyScans'
+import { BodyLoadBoundary } from './BodyLoadBoundary'
+import { BodySilhouette } from './BodySilhouette'
 import './body-map.css'
 
 const BodyScene = lazy(() => import('./BodyScene'))
@@ -92,9 +94,19 @@ export default function BodyMap({session,lang,deny,back}: {session:Session;lang:
         <div className="body-layer-tabs" role="group" aria-label={t('Body layers','身體圖層')}>
           {layers.map(([id,en,zh])=><button key={id} onClick={()=>setLayer(id)} aria-pressed={id===layer} data-testid={'body-layer-'+id}>{id==='overview'?<Layers3 size={16}/>:id==='muscle'?<Sparkles size={16}/>:<CircleDot size={16}/>}{t(en,zh)}</button>)}
         </div>
-        <Suspense fallback={<div className="body-viewport body-model-status">{t('Preparing your body view…','正在準備人體檢視…')}</div>}>
-          <BodyScene scan={scan} layer={layer} selectedRegion={selectedRegion} onSelect={setSelectedRegion} lang={lang} scanning={data.scanning}/>
-        </Suspense>
+        <BodyLoadBoundary fallback={<>
+          <div className="body-notice" role="status" data-testid="body-renderer-unavailable">
+            {t('3D view could not load. You can still select regions in the 2D view.', '3D 檢視載入失敗，仍可使用平面圖選擇部位與閱讀資料。')}
+            <button onClick={() => window.location.reload()}>{t('Reload page','重新載入頁面')}</button>
+          </div>
+          <div className="body-viewport"><div className="body-fallback">
+            <BodySilhouette selected={selectedRegion} scan={scan} onSelect={setSelectedRegion} lang={lang}/>
+          </div></div>
+        </>}>
+          <Suspense fallback={<div className="body-viewport body-model-status">{t('Preparing your body view…','正在準備人體檢視…')}</div>}>
+            <BodyScene scan={scan} layer={layer} selectedRegion={selectedRegion} onSelect={setSelectedRegion} lang={lang} scanning={data.scanning}/>
+          </Suspense>
+        </BodyLoadBoundary>
         <div className="body-legend"><span className={'body-gradient '+layer}/><span>{layer==='overview'?t('Body overview','身體總覽'):layer==='muscle'?t('Regional muscle mass · kg','分區肌肉量・kg'):t('Regional fat mass · kg','分區脂肪量・kg')}</span><span className="body-legend-missing"/>{t('Unavailable','未取得')}</div>
         <div className="body-scan-controls">
           <label><span>{t('Scan scenario','掃描情境')}</span><select aria-label={t('Scan scenario','掃描情境')} value={data.pending?.preset ?? preset} disabled={data.scanning||!!data.pending} onChange={e=>setPreset(e.target.value as ScanPreset)}>

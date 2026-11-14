@@ -14,6 +14,9 @@
   font-size: 13px;
 }
 #device-hint { margin: 0; color: inherit; }
+#film-link { position: fixed; top: 73px; left: 26px; padding: 7px 12px; border: 1px solid #55736e; border-radius: 6px; background: #13282be8; color: var(--mint); font-size: 12px; text-decoration: none; }
+#film-link:hover { background: #29443f; }
+@media(max-width:640px) { #film-link { top: 49px; left: 15px; padding: 5px 8px; font-size: 10px; } }
 #modal.health-modal[open] {
   display: flex;
   flex-direction: column;
