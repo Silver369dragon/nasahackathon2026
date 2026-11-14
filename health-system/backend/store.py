@@ -95,6 +95,7 @@ CREATE INDEX IF NOT EXISTS changes_time ON changes(occurred);
 
 def initialize(path: Path) -> bytes:
     from .alerts import ALERT_SCHEMA
+    from .body_scan import SCHEMA as BODY_SCAN_SCHEMA
     from .incidents import EMERGENCY_SCHEMA
     from .news2 import SCHEMA as NEWS2_SCHEMA
     from .push import PUSH_SCHEMA
@@ -104,7 +105,7 @@ def initialize(path: Path) -> bytes:
     initial = sqlite3.connect(path)
     try:
         initial.execute("PRAGMA journal_mode=WAL")
-        initial.executescript(SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA)
+        initial.executescript(SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA + BODY_SCAN_SCHEMA)
     finally:
         initial.close()
     with connection(path, write=True) as db:

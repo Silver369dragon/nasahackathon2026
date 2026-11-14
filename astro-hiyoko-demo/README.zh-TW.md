@@ -19,7 +19,11 @@ cd .\astro-hiyoko-demo
 npm.cmd start
 ```
 
-開啟 [3D 船艙](http://127.0.0.1:4173)，使用支援 WebGL 2 的瀏覽器。若從第一版升級，請先在 `health-system/web` 執行 `npm.cmd run build` 並重新啟動船艙伺服器。兩個服務預設使用本機 HTTP；若自訂醫療埠或訓練密碼，請在兩個啟動視窗設定相同的 `HEALTH_PORT` 或 `HEALTH_DEMO_PASSWORD`。船艙後端使用訓練密碼建立工作階段，每個裝置使用獨立的 HttpOnly Cookie。一般醫療網站仍可使用原有登入方式。
+開啟 [3D 船艙](http://127.0.0.1:4173)，使用支援 WebGL 2 的瀏覽器。升級時請先在 `health-system/web` 執行 `npm.cmd run build`，再重新啟動醫療服務與船艙伺服器，最後重新開啟手機畫面。兩個服務預設使用本機 HTTP；若自訂醫療埠或訓練密碼，請在兩個啟動視窗設定相同的 `HEALTH_PORT` 或 `HEALTH_DEMO_PASSWORD`。船艙後端使用訓練密碼建立工作階段，每個裝置使用獨立的 HttpOnly Cookie。一般醫療網站仍可使用原有登入方式。
+
+五支手機的首頁都有「我的身體」全息縮圖；點進去或從頁面選單選「身體全息圖」，即可在原手機內旋轉人體、切換肌肉／脂肪、查看傷勢與比較歷史。模型和縮圖透過各自的裝置路徑載入。`health-system/start.cmd` 預設開啟模擬掃描；若直接執行 uvicorn，須設定 `HEALTH_BODY_SCAN_DEMO=1` 才能建立模擬紀錄。沒有掃描紀錄時先按「模擬掃描」，累積兩筆後可比較；獨立預覽資料庫的紀錄不會自動搬入原裝置。
+
+執行 `npm.cmd run test:body` 可驗證原手機入口，測試使用隔離資料庫。
 
 ### 在船艙展示 Mira 緊急求助
 

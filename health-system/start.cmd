@@ -5,6 +5,7 @@ if not exist ".venv\Scripts\python.exe" goto setup_needed
 if not exist "web\dist\index.html" goto setup_needed
 if not defined HEALTH_BIND_HOST set "HEALTH_BIND_HOST=127.0.0.1"
 if not defined HEALTH_PORT set "HEALTH_PORT=8000"
+if not defined HEALTH_BODY_SCAN_DEMO set "HEALTH_BODY_SCAN_DEMO=1"
 set "HEALTH_SCHEME=http"
 if defined HEALTH_TLS_CERT goto tls
 if defined HEALTH_TLS_KEY goto missing_tls

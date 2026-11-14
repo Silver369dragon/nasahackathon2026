@@ -47,7 +47,9 @@ async function stationRequest(req, res, name, route, search) {
   const isBoard = name === 'display';
   const isPage = isBoard ? route === '/board' : /^\/app(?:\/|$)/.test(route);
   const isApi = route.startsWith('/v1/');
-  if (!isPage && !isApi) return res.writeHead(404).end();
+  const isBodyAsset = !isBoard && ['/body/preview.png', '/body/orbital-body.glb'].includes(route);
+  if (!isPage && !isApi && !isBodyAsset) return res.writeHead(404).end();
+  if (isBodyAsset && req.method !== 'GET') return res.writeHead(403).end();
   // Device identity is fixed at startup. Full sign-in/out and device push belong to the independent app.
   if (isApi && (/^\/v1\/(auth|session)(?:\/|$)/.test(route) && req.method !== 'GET' ||
       route.startsWith('/v1/push/') || isBoard && req.method !== 'GET')) return res.writeHead(403).end();

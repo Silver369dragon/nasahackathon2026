@@ -86,3 +86,17 @@ The default Windows database is `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite
 4. Open the monitoring station to see the latest completeness, gaps, observation time and valid readings per crew member. The detailed assessment is restricted to its owner and monitoring role.
 
 The demo accepts existing measurements within five minutes on either side of the observation. Poor-quality, missing and out-of-window values do not count toward completeness. Once all eight items are present, the app marks the observation complete. The score stays blank pending approval of the ship’s scoring configuration.
+
+## Body hologram demo
+
+The revised renderer is labelled `HOLOGRAPHIC / 02`: a transparent emissive body, contour lines, surface points, bloom, a 3D projection base and scanning beam. The projection control pauses/resumes its slow animation; reduced-motion preferences start it paused. Body orientation remains gesture-controlled. After source changes, build the frontend and reload the page; an already-open page retains its loaded JavaScript until reloaded.
+
+Start with `start.cmd`, sign in as `mira`, and open **My body** on the overview or `/app/body-map`. Save a **Resting baseline** scan, then **After training**. Rotate the 22-region body, pinch to zoom, switch front/back, and select the anatomical left thigh to see its muscle/fat mass and injury. Switch to **Fat**, save **Recovery**, then open **History** and **Comparison & scan details**. Older scans show the injury state and composition from that same saved snapshot. **Partial scan** demonstrates unavailable left-forearm and back readings.
+
+All body scans are synthetic and labelled as simulated. Whole-body fat percentage uses fat/body mass; regions display kg only. Scans persist in SQLite, belong to the signed-in crew member, and work with `runId=null`. Retrying an unconfirmed request reuses its identifier and does not duplicate the scan. Connection failures retain data already loaded on the page; initial offline loading requires reconnection.
+
+The local launcher enables `HEALTH_BODY_SCAN_DEMO=1` unless overridden. Set it to `0` to disable new demo scans; direct uvicorn startup requires explicitly enabling it. Saved scans remain readable. Session-protected endpoints are `/v1/body-scans/latest`, `/v1/body-scans` (cursor pagination), `/v1/body-scans/{id}`, and `POST /v1/body-scans/demo` (also requires CSRF). These scans do not alter telemetry or NEWS2.
+
+The original 22-region GLB is about 1.94 MB / 26,764 triangles; see `web/public/body/LICENSE.md` for provenance and CC0 terms. Regenerate it with `node tools/create-body-model.mjs` and its static card image with `node tools/create-body-preview.mjs` from `web`. Three.js loads only on the body page. A WebGL/model failure falls back to a selectable 2D body while retaining the data and comparisons.
+
+Run the usual frontend typecheck, tests, lint and build, then `npm.cmd run test:body` for the isolated body-browser suite. Body tests cover 360/390/430px, landscape and desktop Chrome with simulated touch; physical-phone Safari behavior and sustained rotation performance still need device verification.
