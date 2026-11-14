@@ -9,20 +9,23 @@
     "build": "tsc --noEmit && vite build",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "lint": "eslint src \"tests/*.mjs\" --no-error-on-unmatched-pattern",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:body": "playwright test --config=playwright.body.config.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.2.0",
     "@fontsource/ibm-plex-mono": "^5.2.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "0.180.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.56.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "0.180.0",
     "@vitejs/plugin-react": "^5.0.0",
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^5.2.0",

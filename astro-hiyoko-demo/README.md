@@ -22,6 +22,10 @@ npm.cmd start
 
 The connected cabin opens on port 4173 and expects the medical service on port 8000. If you change `HEALTH_PORT` or `HEALTH_DEMO_PASSWORD`, set the same value in both windows before starting the services. Each cabin device has its own sign-in session. [Enter the connected cabin](http://127.0.0.1:4173/)
 
+Each phone's home screen includes **My body** with the current hologram thumbnail. Open it, or choose **Body hologram** from the phone's navigation, to rotate the body, switch muscle/fat layers, inspect injuries and compare saved scans inside the device. After upgrading, run `npm.cmd run build` in `health-system/web`, restart both the medical and cabin services, then reopen the phone. `health-system/start.cmd` enables synthetic scans by default; direct uvicorn launches need `HEALTH_BODY_SCAN_DEMO=1`. Use **Simulate scan** for the first record and save a second to compare. Records in a separate preview database are not copied into the original devices.
+
+Run `npm.cmd run test:body` for the isolated original-phone entry tests.
+
 To use the standalone simulation, start just the cabin server and open the simulation URL. The scripted readings and events stay in the current browser tab. [Enter the standalone simulation](http://127.0.0.1:4173/?mode=simulation)
 
 ## Show a crew member requesting help

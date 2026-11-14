@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   Activity,
   ArrowLeft,
@@ -44,7 +44,10 @@ import { FirstAid } from './FirstAid'
 import { Chat } from './Chat'
 import { Trends } from './Trends'
 import { AssessmentStatus, News2 } from './AssessmentForm'
+import { BodyOverview } from './BodyOverview'
 import './style.css'
+
+const BodyMap = lazy(() => import('./BodyMap'))
 
 function Brand() {
   return (
@@ -211,6 +214,7 @@ function Login({
 
 const paths = {
   personal: '/app/overview',
+  body: '/app/body-map',
   measure: '/app/measure',
   history: '/app/history',
   trends: '/app/trends',
@@ -284,6 +288,7 @@ function Console({
     ...(session.roles.includes('crew') && session.crewId
       ? [
           { path: paths.personal, text: t('Overview', '個人總覽'), Icon: LayoutDashboard },
+          { path: paths.body, text: t('Body hologram', '身體全息圖'), Icon: Layers3 },
           { path: paths.tasks, text: t('Daily training', '每日訓練'), Icon: Activity },
           { path: paths.chat, text: t('Health assistant', '健康助手'), Icon: MessageCircle },
           { path: paths.aid, text: t('First aid', '急救指引'), Icon: BookHeart },
@@ -449,7 +454,7 @@ function Console({
               {t('Crew overview', '全員總覽')}
             </button>
           )}
-          <div className={'page-title' + (overview && !isBoard ? ' page-hero' : '')}>
+          {path !== paths.body && <div className={'page-title' + (overview && !isBoard ? ' page-hero' : '')}>
             {overview && !isBoard && <OrbitArt />}
             <div>
               <div className="kicker">
@@ -479,7 +484,8 @@ function Console({
                 </button>
               </div>
             )}
-          </div>
+          </div>}
+          {path === paths.personal && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
           {path === paths.personal && help.status === 'sent' && <p className="help-sent" data-testid="help-sent" role="status">
             <CheckCircle2 size={17}/>{t('Help request sent to the crew.', '緊急求助通知已發出。')}</p>}
           {path === paths.personal && help.status === 'queued' && <p className="notice" role="status">
@@ -488,9 +494,13 @@ function Console({
             {t('Delivery is unconfirmed. Retry to check or send the same request.', '尚未確認送達。重新送出會查核同一筆求助。')}</p>}
           {path === paths.personal && help.status === 'rejected' && <p className="notice" role="alert">
             {t('The server could not accept the request. Try again.', '伺服器未受理求助，請再試一次。')}</p>}
-          {personal && <PersonalTraining session={session} lang={lang} deny={deny} refreshToken={feed.trainingRevision}
+          {personal && path !== paths.body && <PersonalTraining session={session} lang={lang} deny={deny} refreshToken={feed.trainingRevision}
             showTasks={path === paths.personal || path === paths.tasks} goMeasure={() => go(paths.measure)} />}
-          {path === paths.assessment ? (
+          {path === paths.body ? (
+            <Suspense fallback={<div className="panel empty-state">{t('Loading body view…', '正在載入人體檢視…')}</div>}>
+              <BodyMap key={session.username + session.csrfToken} session={session} lang={lang} deny={deny} back={() => go(paths.personal)} />
+            </Suspense>
+          ) : path === paths.assessment ? (
             <News2 session={session} lang={lang} deny={deny} assessmentRevision={feed.assessmentRevision}
               revision={feed.historyRevision[session.username]} measure={() => go(paths.measure)}
               ask={id => { setChatAssessment(id); go(paths.chat) }}/>

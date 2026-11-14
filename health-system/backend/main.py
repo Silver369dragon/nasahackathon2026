@@ -305,6 +305,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         result, replayed = accept(path, data, data.deviceId, owner)
         return response(result, 200 if replayed else 201, replayed=replayed)
 
+    from .body_scan import register_body_scans
     from .incident_routes import register_emergencies
     from .task_routes import register_tasks
 
@@ -312,6 +313,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     register_push(app, path)
     register_trends(app, path)
     register_news2(app, path)
+    register_body_scans(app, path)
     register_tasks(app, path)
     register_reads(app, path)
     register_knowledge(app, path)

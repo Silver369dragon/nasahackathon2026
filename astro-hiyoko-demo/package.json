@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.mjs",
     "test:health": "playwright test --config=playwright.health.config.js",
-    "test": "node --test simulation.test.mjs routines.test.mjs scenarios.test.mjs social.test.mjs"
+    "test": "node --test simulation.test.mjs routines.test.mjs scenarios.test.mjs social.test.mjs",
+    "test:body": "playwright test --config=playwright.body.config.js"
   },
   "dependencies": {
     "three": "0.180.0"
