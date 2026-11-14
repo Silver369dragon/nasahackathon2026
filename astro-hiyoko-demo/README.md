@@ -1,86 +1,70 @@
-# Astro Hiyoko · Deep Space Habitat
+# Astro Hiyoko 3D habitat
 
-進入 Three.js 船艙時，五支手機會先各自登入醫療訓練帳號。走進公共區即可從牆面看到全員的心率、血氧、血壓、體溫與最近一則緊急通知。點手機可操作本人的個人端，點牆面可開完整唯讀看板。
+**English** | [繁體中文](README.zh-TW.md)
 
-## 開啟
+Explore the crew quarters, training area and commons in a Three.js spacecraft. Each of the five crew phones opens its owner’s health app. The commons wall shows heart rate, oxygen saturation, blood pressure, temperature and the latest alert. Click the wall to open the full crew board.
 
-從專案根目錄開兩個 PowerShell 視窗。第一個啟動醫療服務，若已啟動可直接沿用。首次安裝請依 [醫療系統說明](../health-system/README.md) 執行 `setup.cmd`。
+## Start the cabin
+
+Use Node.js 24, npm and a browser with WebGL 2 support. For the connected cabin, first install the [crew health system](../health-system/README.md). Open PowerShell in the repository root and start the medical service.
 
 ```powershell
 .\health-system\start.cmd
 ```
 
-第二個視窗啟動船艙。首次使用先在 `astro-hiyoko-demo` 執行 `npm.cmd ci`。
+Open another PowerShell window at the repository root for the cabin. Run `npm.cmd ci` on the first launch.
 
 ```powershell
 cd .\astro-hiyoko-demo
+npm.cmd ci
 npm.cmd start
 ```
 
-開啟 [3D 船艙](http://127.0.0.1:4173)，使用支援 WebGL 2 的瀏覽器。若從第一版升級，請先在 `health-system/web` 執行 `npm.cmd run build` 並重新啟動船艙伺服器。兩個服務預設使用本機 HTTP；若自訂醫療埠或訓練密碼，請在兩個啟動視窗設定相同的 `HEALTH_PORT` 或 `HEALTH_DEMO_PASSWORD`。船艙後端使用訓練密碼建立工作階段，每個裝置使用獨立的 HttpOnly Cookie。一般醫療網站仍可使用原有登入方式。
+The connected cabin opens on port 4173 and expects the medical service on port 8000. If you change `HEALTH_PORT` or `HEALTH_DEMO_PASSWORD`, set the same value in both windows before starting the services. Each cabin device has its own sign-in session. [Enter the connected cabin](http://127.0.0.1:4173/)
 
-### 在船艙展示 Mira 緊急求助
+To use the standalone simulation, start just the cabin server and open the simulation URL. The scripted readings and events stay in the current browser tab. [Enter the standalone simulation](http://127.0.0.1:4173/?mode=simulation)
 
-1. 開啟船艙，選「公共區」，讓視角停在牆上看板前。牆面顯示已連線後就能接收更新。缺值顯示破折號，星號代表過期量測，離線時標示最後同步時間。
-2. 用另一個船艙視窗點 Mira 的手機，或從船員裝置選單選 Mira。確認個人頁顯示 Mira，按「緊急求助」。也可在同一個船艙送出求助後關閉手機回到牆前。
-3. 牆面下方會顯示 Mira、主動求助與事件的 UTC 時間。醫療模式的五位船員為 Lin、Kai、Mira、Noa、Sol；牆面固定使用唯讀 `display` 帳號。
+## Show a crew member requesting help
 
-若要播放原本的合成情境，在「•••」選「開啟獨立劇本模擬」，或開啟 [劇本模式](http://127.0.0.1:4173/?mode=simulation)。
+1. Open the connected cabin and use **Go to area** to enter the commons. Leave the wall in view and wait for **Live**. A dash indicates a missing reading, an asterisk marks a stale one, and an offline wall shows the last sync time.
+2. In a second cabin window, open Mira’s phone from **Crew devices** and select **Request help**. With one window, close the phone after sending the request to see the wall again.
+3. The wall displays **Mira · Manual help request** with its UTC time. Click the wall for the full board. The phones belong to Lin, Kai, Mira, Noa and Sol. The wall uses the read-only `display` account.
 
-## 操作
+## Explore the habitat
 
-| 操作 | 船內 | 船外 |
-|---|---|---|
-| 左鍵拖曳 | 原地轉頭 | 環繞船艦 |
-| 右鍵拖曳 | 在水平面抓取式平移；畫面跟隨拖曳方向 | 相同的抓取式平移 |
-| 滾輪 | 水平前進／後退 | 縮放距離 |
-| WASD、方向鍵 | 相機相對移動；A／← 向左，D／→ 向右 | 無 |
-| Q／E | 直接下降／上升，沒有位置邊界 | 無 |
-| 全景／重設 | 回到船內中央通道起點 | 回到船內中央通道起點 |
+| Control | Inside | Outside |
+| --- | --- | --- |
+| Left drag | Look around | Orbit the ship |
+| Right drag | Pan horizontally | Pan horizontally |
+| Scroll | Move forward or backward | Zoom |
+| WASD or arrow keys | Move relative to the camera | — |
+| Q / E | Descend / ascend | — |
+| Reset view | Return to the central corridor | Return to the central corridor |
 
-- 艙區選單：直接前往駕駛艙、五間個人房、公共區、訓練區或設備區。
-- 點選手機或船員：放大該船員手機；船員選單提供等效入口。
-- 點公共區 3D 大螢幕：開啟放大的共享資料。Esc 或關閉鈕返回原視角。
-- 「船外視角／返回船內」：切換完整外殼外觀與船內探索。
-- 「•••」：開啟暫停、1×／4×／12× 模擬倍速、情境播放、共享螢幕及重設。選項預設收起。
-- 右上角 ⓘ：查看操作說明、現行資料流程、未來整合與參考來源。
+Use the area menu to jump to the cockpit, a crew berth, the commons, the gym or the equipment bay. Click a crew member or their phone to open the device. Click the commons display to enlarge it. Press **Esc** to return to the scene. **Exterior view** takes you outside the hull. The **ⓘ** panel explains the controls and data sources.
 
-W/S、前後箭頭及滾輪始終水平移動，不隨俯仰上下漂移。只有 Q/E 改變高度。鍵盤有加減速緩動，右鍵拖曳和滾輪有短暫平滑過渡。自由探索相機可以穿越隔間和船體，也可升至船外或降至船底，不使用碰撞／位置限制。起點在走道上方約 1.65 場景公尺的人眼高度。點船員只開啟手機，**尚未實作接管船員或有邊界的角色控制模式**。
+The interior camera can pass through partitions. Forward and backward movement stays level when you look up or down. The five private quarters each have a sleeping bag, desk, storage and handholds. The central corridor links the cockpit, dining and water stations, gym, equipment racks and airlock. Outside, you can see the solar panels, curved hull and three thrusters.
 
-## 空間與行程
+Each crew member follows a schedule of rest, duty, exercise and meals. In connected mode, Lin is on flight duty, Kai inspects systems, Mira does resistance training, Noa cycles and Sol checks on the crew. The standalone scenario uses Hana, Kai, Mira, Leo and Yuna.
 
-依最新比例回饋，維持上一輪高度，寬度收為最近版本的三分之二，長度不變；船體相對最初版本的長度為 2 倍、寬度為 1.6 倍、高度為 1.65 倍。中央通道頂部約 6.1 場景公尺高，優先改善頭頂空間。家具與船員以反向縮放保留人形尺度，沒有隨船體放大。
+## Run a scripted scenario
 
-五間房均有門口、固定睡袋、工作桌、儲物櫃、扶手與標牌；中央通道連接三聯控制台駕駛艙、公共餐桌／補水設備／共享大螢幕、跑步機／阻力架／腳踏車訓練區、設備機櫃及氣閘。外觀有完整曲面外殼、船首、三具推進器與太陽能板。
+In standalone mode, press **F** to open the scenario panel. Choose a crew member and event, then select **Trigger simulated event**. Use the panel to visit the event, open the phone or inspect the shared screen. The **•••** menu also offers pause, 1×/4×/12× speed and reset.
 
-五名船員各自依錯開的時間表休息、值勤、訓練、用餐與工作。醫療模式中，Lin 值勤、Kai 巡檢、Mira 阻力訓練、Noa 腳踏車訓練、Sol 團隊關懷。獨立劇本沿用 Hana、Kai、Mira、Leo、Yuna。個人裝置隨角色移動。
+| Scenario | What appears in the cabin |
+| --- | --- |
+| Crew member collapses | The selected character stops and falls. Their phone and the shared screen show the scripted fall flag, 48 bpm and 94% oxygen saturation. |
+| Abnormal heart rate | The selected crew member’s simulated rate changes to 112 bpm and the screens show an alert. |
+| Device offline | The device is marked missing. Its heart rate, oxygen saturation and temperature fields show missing values. |
+| Environmental radiation warning | The cabin lighting and shared display flag a ship-wide event. Each phone receives an environmental notice. |
 
-## 獨立劇本模式的資料流
+The phones and shared screen read the same state. Each simulated second updates the crew member’s activity, synthetic readings, sequence number and simulation timestamp. Pausing or changing speed affects the crew routines, readings and event sequence together.
 
-`模擬時鐘 → 行程狀態 + 合成讀值 → 共用狀態 → 五台 3D 手機／放大手機／共享螢幕`
+A scripted event progresses from sensor to phone to shared screen at two-second intervals and can be acknowledged after six simulated seconds. Acknowledgement records that the event was seen. The event stays active on screen until you clear it or start another scenario. Reset returns the crew routines and simulation clock to their starting point.
 
-資料約每模擬秒更新，包含 id、heart、oxygen、temperature、activity、next、source=`simulation`、sequence 與 timestamp（模擬秒，非 UTC）。活動會改變合成心率。所有畫面讀同一份資料，暫停及倍速一起控制行程、讀值與事件。
+## References and assets
 
-原心率按鈕仍可直接觸發 Mira 的 112 BPM 劇本值；新的 F 情境面板可以選船員與四種事件。感測 → 個人裝置 → 共享螢幕 → 確認的文字階段每兩秒前進；這是教學時序，**不是實際網路傳輸或延遲模擬**。六秒後可在共享畫面確認。確認只標示已查看，事件與異常狀態保留到手動重設；不發送消息、不代表醫療處置。
-
-## 獨立劇本模式的情境控制台
-
-按 **F** 開啟／關閉，或從「••• → 情境控制台」進入。預設不顯示面板。選情境及船員後按「觸發模擬情境」，可在面板前往事件現場、查看個人手機與共享螢幕，或清除事件恢復行程。
-
-| 情境 | 3D 與資料行為 |
-|---|---|
-| 船員倒下 | 選定船員停止行程並倒地，出現事件標記；合成跌倒旗標、活動停止、48 BPM／94% 血氧同步到手機及共享畫面 |
-| 健康指標異常 | 選定船員使用 112 BPM 劇本值，各螢幕同步顯示提示 |
-| 裝置失聯／資料不足 | 選定裝置標記 missing，心率／血氧／體溫顯示缺值，絕不以舊數值冒充即時數據 |
-| 環境輻射警示 | 全船暖色警示和共享區標記，各手機收到環境提示；不捏造個別船員生命徵象變化 |
-
-一次展示一個事件；新事件會取代舊事件。事件有本機 SIM 編號與 active／acknowledged 狀態。確認後倒地和警示仍保留，手動重設才清除；重設同時把行程與模擬時鐘回到起點。
-
-四個劇本使用合成資料與獨立的模擬時鐘。劇本的提示與確認均保存在該展示分頁中。
-
-## 參考來源
-
-- [NASA — Meet Orion](https://www.nasa.gov/missions/meet-nasas-orion-spacecraft/)：控制台、座椅、生活設備與服務模組。
-- [ESA — Sleeping quarters](https://www.esa.int/media/sleeping-quarters)：私人睡眠艙與固定收納。
-- [ESA — ISS interior tour](https://blogs.esa.int/luca-parmitano/2013/11/06/guide-to-the-international-space-station-for-the-occasional-visitor-part-2/)：公共區、氣閘、跑步機與阻力訓練設備。
-- [地球表面貼圖](https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg) 與 [月球表面貼圖](https://threejs.org/examples/textures/planets/moon_1024.jpg) 來自 Three.js 範例，隨網站存放在 assets 資料夾。
+- Cockpit and habitation references. [NASA’s Orion overview](https://www.nasa.gov/missions/meet-nasas-orion-spacecraft/)
+- Sleeping restraints and private storage. [ESA sleeping quarters](https://www.esa.int/media/sleeping-quarters)
+- Commons, airlock and exercise equipment. [ESA interior tour of the ISS](https://blogs.esa.int/luca-parmitano/2013/11/06/guide-to-the-international-space-station-for-the-occasional-visitor-part-2/)
+- Earth and Moon textures are bundled in `assets/`. [Three.js Earth texture](https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg) · [Three.js Moon texture](https://threejs.org/examples/textures/planets/moon_1024.jpg)
