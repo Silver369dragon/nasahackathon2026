@@ -108,17 +108,29 @@ def initialize(path: Path) -> bytes:
     from .incidents import EMERGENCY_SCHEMA
     from .news2 import SCHEMA as NEWS2_SCHEMA
     from .push import PUSH_SCHEMA
+    from .radiation_store import RADIATION_SCHEMA
     from .tasks import TASK_SCHEMA
 
     path.parent.mkdir(parents=True, exist_ok=True)
     initial = sqlite3.connect(path)
     try:
+        existing = initial.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
+        radiation_exists = initial.execute("SELECT 1 FROM sqlite_master WHERE name='radiation_missions'").fetchone()
+        if existing and not radiation_exists:
+            backup_path = path.with_name(path.stem + '.before-radiation.sqlite3')
+            if not backup_path.exists():
+                backup = sqlite3.connect(backup_path)
+                try:
+                    initial.backup(backup)
+                finally:
+                    backup.close()
         initial.execute("PRAGMA journal_mode=WAL")
-        initial.executescript(SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA + BODY_SCAN_SCHEMA)
+        initial.executescript(SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA + BODY_SCAN_SCHEMA + RADIATION_SCHEMA)
     finally:
         initial.close()
     with connection(path, write=True) as db:
         db.execute("INSERT OR IGNORE INTO settings VALUES('cursor_secret',?)", (secrets.token_hex(32),))
+        db.execute("INSERT OR IGNORE INTO settings VALUES('radiation_schema_version','1')")
         for crew in CREW:
             db.execute("INSERT OR IGNORE INTO crew VALUES(?,?)", (crew, crew.title()))
             db.execute("INSERT OR IGNORE INTO devices VALUES(?,?,?,?,NULL,NULL)",

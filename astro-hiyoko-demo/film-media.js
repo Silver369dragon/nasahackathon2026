@@ -5,7 +5,7 @@ import {stationCrew} from './config.mjs';
 const ink = '#173237';
 const paper = '#eff6f0';
 const muted = '#54736a';
-const keys = ['trends', 'record-detail', 'overview', 'alert', 'question', 'guide', 'evidence', 'aid-route', 'aid-steps'];
+const keys = ['assistant-normal', 'trends', 'record-detail', 'overview', 'alert', 'question', 'guide', 'evidence', 'aid-route', 'aid-steps'];
 
 function text(ctx, value, x, y, size = 24, color = ink, maxWidth) {
   ctx.fillStyle = color;
@@ -109,7 +109,7 @@ function sensor(screen, row, connected) {
 
 // Display data follows the medical system, independently of the film playhead.
 // No captured medical PNGs or historical footage are loaded.
-export async function loadFilmMedia(onChange = _update => {}, {wall = null, onReady = _ready => {}, audio = true} = {}) {
+export async function loadFilmMedia(onChange = _update => {}, {wall = null, onReady = _ready => {}, onRadiation = (_snapshot, _status) => {}, audio = true} = {}) {
   const screens = {board:surface(1280,720), phone:surface(390,700), taskPhone:surface(390,700), bodyMap:surface(1280,720), sensor:surface(384,256)};
   const crewPhones = Object.fromEntries(stationCrew.map(id => [id, surface(390,700)]));
   let state = {status:'syncing', syncedAt:null, rows:[], emergency:null};
@@ -166,7 +166,7 @@ export async function loadFilmMedia(onChange = _update => {}, {wall = null, onRe
   media.wallEmergency = startHealthStations(wall || screens.board, ready => {
     onReady(ready);
     if (ready && !bodyTimer) void refreshBody();
-  }, next => { state = next; repaint(); });
+  }, next => { state = next; repaint(); onRadiation(next.radiation ?? null, next.status); });
   window.addEventListener('pagehide', () => { stopped = true; clearTimeout(bodyTimer); bodyRequest?.abort(); });
   window.addEventListener('pageshow', event => { if (event.persisted) { stopped = false; void refreshBody(); } });
   if (!audio) return media;

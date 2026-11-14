@@ -3,8 +3,10 @@ import { api, ApiError, parseSse, restricted, stationBase } from './api'
 import { addEmergency, applySummary } from './domain'
 import type { CrewSummary, Emergency, Snapshot, SummaryEvent, View } from './domain'
 import type { AssessmentSummary } from './news2'
+import { acceptRadiation, type RadiationSnapshot } from './radiation'
 
 export type Feed = {
+  radiation: RadiationSnapshot | null
   assessments: AssessmentSummary[]
   assessmentRevision: number
   rows: CrewSummary[]
@@ -16,6 +18,7 @@ export type Feed = {
   emergencies: Emergency[]
 }
 const empty: Feed = {
+  radiation: null,
   assessments: [],
   assessmentRevision: 0,
   rows: [], status: 'syncing', syncedAt: null, loaded: false, historyRevision: {},
@@ -33,6 +36,7 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
     let scope: number | null = null
     let rows: CrewSummary[] = []
     let assessments: AssessmentSummary[] = []
+    let radiation: RadiationSnapshot | null = null
     let assessmentRevision = 0
     let historyRevision: Record<string, string> = {}
     let emergencies: Emergency[] = []
@@ -43,6 +47,7 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
       if (!disposed)
         setFeed((prev) => ({
           rows,
+          radiation,
           assessments,
           assessmentRevision,
           historyRevision,
@@ -58,6 +63,7 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
       scope = null
       rows = []
       assessments = []
+      radiation = null
       historyRevision = {}
       emergencies = []
       versions.clear()
@@ -68,6 +74,11 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
       watchdog = setTimeout(() => controller.abort(), 35000)
     }
     async function connect() {
+      if (!navigator.onLine) {
+        publish('offline')
+        timer = setTimeout(connect, 1000)
+        return
+      }
       controller = new AbortController()
       const signal = controller.signal
       try {
@@ -78,6 +89,7 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
           scope = snap.scopeVersion
           cursor = snap.cursor
           rows = snap.crewSummaries
+          radiation = snap.radiation ?? null
           assessments = snap.news2Assessments ?? []
           assessmentRevision++
           trainingRevision++
@@ -119,6 +131,12 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
               const event: SummaryEvent = JSON.parse(msg.data)
               if (scope !== event.scopeVersion) throw new ApiError(409, 'Scope changed')
               rows = applySummary(rows, versions, event)
+              publish(connected ? 'connected' : 'syncing', true)
+            }
+            if (msg.event === 'radiation.updated') {
+              const event = JSON.parse(msg.data)
+              if (event.scopeVersion !== scope) throw new ApiError(409, 'Scope changed')
+              radiation = acceptRadiation(radiation, event.payload)
               publish(connected ? 'connected' : 'syncing', true)
             }
             if (msg.id !== cursor && ['measurement.accepted', 'measurement.corrected'].includes(msg.event)) {
@@ -175,11 +193,17 @@ export function useFeed(view: View, deny: () => void, onEmergency: (item: Emerge
     }
     reset()
     void connect()
+    const offline = () => { controller.abort(); publish('offline') }
+    const online = () => { clearTimeout(timer); if (controller.signal.aborted) void connect() }
+    window.addEventListener('offline', offline)
+    window.addEventListener('online', online)
     return () => {
       disposed = true
       controller.abort()
       clearTimeout(timer)
       clearTimeout(watchdog)
+      window.removeEventListener('offline', offline)
+      window.removeEventListener('online', online)
     }
   }, [view, deny, onEmergency])
   return feed

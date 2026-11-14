@@ -99,3 +99,17 @@ npm.cmd start
 在兩個瀏覽器視窗開啟 [3D 船艙](http://127.0.0.1:4173/)。第一個視窗透過「前往艙區」進入公共區，等牆面顯示「已連線」。第二個視窗從「船員裝置」選擇 Mira，按下「緊急求助」。公共區牆面會顯示「Mira · 主動求助」與事件時間。
 
 若只啟動 3D 服務，也可進入獨立模擬，按 **F** 選擇四種預設情境之一。展示結束後，在各服務的 PowerShell 視窗按 `Ctrl+C` 停止服務。[獨立劇本模式](http://127.0.0.1:4173/?mode=simulation) · [3D 展示操作指南](astro-hiyoko-demo/README.zh-TW.md)
+
+
+## 新增功能與展示資料
+
+- **太空輻射監測**：個人頁顯示歷史暴露、共同新增與合計；監測站可查看五人並切換模擬輻射事件。3D 船艙的「更多 → 開啟輻射監測」讀取同一份後端資料，重新整理不會歸零。所有輻射數值均為 Simulation。
+- **歷史資料匯入**：以 `monitor` 登入醫療系統的 `/system`，選取 JSON、確認摘要後匯入。可匯入生命徵象、身體掃描與輻射封存資料；匯入的輻射封存與即時任務分開顯示。
+- **即時資料播放備案**：啟動醫療與 3D 服務後，開啟 `http://127.0.0.1:4173/playback.html` 開始循環播放，讓五人手機與公共看板持續收到合成量測。停止後讀值會逐漸過期，歷史仍保留。
+
+| 檔案 | 用途 |
+| --- | --- |
+| [60 秒資料包](astro-hiyoko-demo/data/crew-health-sample60.zip) | 資料播放器直接讀取的五人合成遙測；每輪 300 包、1,215 筆指標。供無硬體時展示資料流，不是歷史 JSON 匯入檔。 |
+| [歷史 JSON 範例](health-system/examples/crew-dataset.example.json) | 在監測站的資料匯入功能選取，示範 `crew-dataset/1` 格式的歷史資料。 |
+
+程式分工：`health-system/backend/radiation*.py` 負責輻射累加、保存與 API；`dataset_import.py`、`body_import.py` 負責匯入；`health-system/web/src/RadiationPanel.tsx`、`DatasetImport.tsx` 提供操作介面；`astro-hiyoko-demo/radiation-monitor.js` 將輻射資訊接入船艙。操作細節見[醫療系統 README](health-system/README.zh-TW.md)與[3D README](astro-hiyoko-demo/README.zh-TW.md)。

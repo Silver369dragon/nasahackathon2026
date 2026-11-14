@@ -16,14 +16,16 @@ const number = (v: number | null, lang: Lang) => v === null ? '—' : v.toLocale
 const metrics = monitoringMetrics.filter(metric => metric.code !== 'work_of_breathing')
 const unique = (values: string[]) => [...new Set(values)].sort()
 
-function TrendChart({ group, start, end, lang, select, metricCode }: {
-  group: Series; start: string; end: string; lang: Lang; select: (point: Point) => void; metricCode: string
+export function TrendChart({ group, start, end, lang, select, metricCode, axisLabels, floor }: {
+  group: Pick<Series, 'points' | 'unit'>; start: string; end: string; lang: Lang; select?: (point: Point) => void; metricCode: string
+  axisLabels?: [string, string, string]
+  floor?: number
 }) {
   const values = group.points.map(p => p.value as number)
   if (!values.length) return <p>{tx(lang, 'No valid readings to plot.', '這段期間沒有可繪圖的有效值。')}</p>
   const min = Math.min(...values), max = Math.max(...values)
   const pad = Math.max((max - min) * .12, group.unit === 'Cel' ? .1 : 1)
-  const low = min - pad, high = max + pad
+  const low = Math.max(floor ?? -Infinity, min - pad), high = max + pad
   const first = Date.parse(start), duration = Date.parse(end) - first
   const x = (p: Point) => 40 + 310 * (Date.parse(p.observedAt) - first) / duration
   const y = (p: Point) => 20 + 140 * (high - (p.value as number)) / (high - low)
@@ -36,11 +38,11 @@ function TrendChart({ group, start, end, lang, select, metricCode }: {
         <text x="34" y={24 + 70 * i} textAnchor="end">{number(v, lang)}</text>
       </g>)}
       <path d={path} fill="none" stroke="var(--accent)" strokeWidth="2"/>
-      {group.points.map(p => <circle key={p.id} cx={x(p)} cy={y(p)} r="3" onClick={() => select(p)}>
+      {group.points.map(p => <circle key={p.id} cx={x(p)} cy={y(p)} r="3" onClick={() => select?.(p)}>
         <title>{stamp(p.observedAt, lang)} · {p.value} {displayUnit(group.unit, metricCode)}</title>
       </circle>)}
     </svg>
-    <div className="trend-axis"><span>{new Date(start).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span><span>UTC</span><span>{new Date(end).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span></div>
+    <div className="trend-axis"><span>{axisLabels?.[0] ?? new Date(start).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span><span>{axisLabels?.[1] ?? 'UTC'}</span><span>{axisLabels?.[2] ?? new Date(end).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}</span></div>
   </div>
 }
 

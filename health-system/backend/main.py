@@ -29,6 +29,10 @@ from .models import Login, ManualBatch, MetricCode, Telemetry, View, utc_text
 from .news2 import register_news2
 from .news2 import summaries as assessment_summaries
 from .push import push_worker, register_push
+from .radiation import project_radiation
+from .radiation_routes import register_radiation_routes
+from .radiation_runtime import RadiationRuntime
+from .radiation_store import read_radiation
 from .store import (
     CREW,
     WORKSPACE,
@@ -60,7 +64,7 @@ ACCOUNT_ROLES = {
 }
 
 
-def response(data: Data, status: int = 200, *, replayed: bool = False) -> JSONResponse:
+def response(data: Data | None, status: int = 200, *, replayed: bool = False) -> JSONResponse:
     return JSONResponse({"requestId": str(uuid4()), "serverTime": now_text(),
                          "data": data, "meta": {"replayed": replayed}}, status,
                         headers={"Cache-Control": "no-store"})
@@ -78,17 +82,18 @@ class PacketLimit:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope["path"] not in ("/v1/telemetry", "/v1/manual-measurements"):
+        if scope["type"] != "http" or scope["path"] not in ("/v1/telemetry", "/v1/manual-measurements", "/v1/radiation/samples", "/v1/radiation/demo-event", "/v1/datasets/import"):
             await self.app(scope, receive, send)
             return
+        limit = 32 * 1024 * 1024 if scope['path'] == '/v1/datasets/import' else BODY_LIMIT
         body = bytearray()
         while True:
             message = await receive()
             if message["type"] == "http.disconnect":
                 return
             chunk = message.get("body", b"")
-            if len(body) + len(chunk) > BODY_LIMIT:
-                await failure(413, "PAYLOAD_TOO_LARGE", "Packets may contain up to 256 KiB.")(scope, receive, send)
+            if len(body) + len(chunk) > limit:
+                await failure(413, "PAYLOAD_TOO_LARGE", f"Request body exceeds {limit} bytes.")(scope, receive, send)
                 return
             body.extend(chunk)
             if not message.get("more_body"):
@@ -148,6 +153,7 @@ def public_events(db: sqlite3.Connection, position: int, head: int, view: str, u
         else:
             health += " OR kind='team_tasks.updated'"
         visible = f"({health}) OR kind='emergency.created'"
+    visible = f"({visible}) OR kind='radiation.updated'"
     rows = db.execute(f"""SELECT seq,kind,document FROM changes WHERE seq>? AND seq<=? AND ({visible})
                           ORDER BY seq LIMIT 100""", args).fetchall()
     result = []
@@ -157,6 +163,8 @@ def public_events(db: sqlite3.Connection, position: int, head: int, view: str, u
             payload["payload"] = project_summary(payload["payload"], view)
         elif row["kind"] in ("measurement.accepted", "measurement.corrected"):
             payload["payload"] = project_measurement(payload["payload"], view)
+        elif row["kind"] == 'radiation.updated':
+            payload['payload'] = project_radiation(payload['payload'], view, user['crewId'])
         if view == "system_display":
             payload.pop("causationId", None)
         result.append((row["seq"], row["kind"], payload))
@@ -170,6 +178,15 @@ def configured_path() -> Path:
 
 def create_app(db_path: Path | str | None = None) -> FastAPI:
     path = Path(db_path) if db_path is not None else configured_path()
+    radiation = RadiationRuntime(path)
+
+    async def radiation_clock():
+        while True:
+            await asyncio.sleep(1)
+            try:
+                await run_in_threadpool(radiation.checkpoint)
+            except sqlite3.OperationalError:
+                radiation.degraded = True
 
     async def expire():
         while True:
@@ -186,12 +203,19 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         await run_in_threadpool(initialize_knowledge, path)
         await run_in_threadpool(initialize_chat, path)
         await run_in_threadpool(upkeep, path)
+        await run_in_threadpool(radiation.checkpoint)
         timer = asyncio.create_task(expire())
+        radiation_timer = asyncio.create_task(radiation_clock())
         push = asyncio.create_task(push_worker(path))
         try:
             yield
         finally:
             timer.cancel()
+            radiation_timer.cancel()
+            with suppress(asyncio.CancelledError):
+                await radiation_timer
+            with suppress(sqlite3.OperationalError):
+                await run_in_threadpool(radiation.shutdown)
             push.cancel()
             with suppress(asyncio.CancelledError):
                 await push
@@ -203,6 +227,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
 
     app = FastAPI(title="Crew Health Training", version="1.3", lifespan=lifespan)
     app.state.db_path = path
+    app.state.radiation = radiation
     app.state.chat_jobs = set()
     app.add_middleware(PacketLimit)
 
@@ -240,8 +265,10 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     def ready():
         with connection(path) as db:
             db.execute("SELECT value FROM settings WHERE key='cursor_secret'").fetchone()
-        return response({"status": "ready", "mode": "training", "database": "ready", "catalogCount": len(CATALOG),
-                         "serviceStatus": service_status()})
+        radiation_status = 'disabled' if not radiation.enabled else 'degraded' if radiation.degraded else 'ready'
+        return response({"status": 'degraded' if radiation.degraded else 'ready', "mode": "training",
+                         "database": "ready", "catalogCount": len(CATALOG), "radiationStatus": radiation_status,
+                         "serviceStatus": service_status()}, 503 if radiation.degraded else 200)
 
     @app.post("/v1/session")
     @app.post("/v1/auth/login")
@@ -306,6 +333,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         return response(result, 200 if replayed else 201, replayed=replayed)
 
     from .body_scan import register_body_scans
+    from .dataset_import import register_dataset_import
     from .incident_routes import register_emergencies
     from .task_routes import register_tasks
 
@@ -314,6 +342,8 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     register_trends(app, path)
     register_news2(app, path)
     register_body_scans(app, path)
+    register_radiation_routes(app, path, radiation)
+    register_dataset_import(app, path, radiation)
     register_tasks(app, path)
     register_reads(app, path)
     register_knowledge(app, path)
@@ -336,6 +366,7 @@ def register_reads(app: FastAPI, path: Path) -> None:
     @app.get("/v1/snapshot")
     def snapshot(request: Request, view: View, runId: str | None = None):
         user, scope = view_scope(request, view, runId)
+        app.state.radiation.ensure_started()
         with connection(path, write=True) as db:
             now = clock()
             ensure_day(db, now)
@@ -361,12 +392,13 @@ def register_reads(app: FastAPI, path: Path) -> None:
                 for a in list_alerts(db, user["crewId"], state)
             ]
             cursor = cursor_token(app.state.secret, scope, event_head(db))
+            radiation = read_radiation(db, view, user['crewId']) if app.state.radiation.enabled else None
         data = {"schemaVersion": "1.3", "runId": None, "mode": "training", "run": None,
                 "scopeVersion": 1, "view": view, "cursor": cursor, "crewSummaries": summaries,
                 "currentMeasurements": [dict(crewId=c["crewId"], **m) for c in summaries for m in c["metricCards"]],
                 "alerts": alerts, "emergencies": emergencies,
                 **task_data, "devices": [], "environment": [],
-                "serviceStatus": service_status()}
+                "serviceStatus": service_status(), "radiation": radiation}
         return response(data)
 
     @app.get("/v1/alerts")

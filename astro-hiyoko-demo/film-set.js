@@ -4,6 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { filmActionTime, filmStoryTime } from './film-actors.js';
 import { readings } from './simulation.mjs';
 import { scenarioReadings } from './scenarios.mjs';
+import {t} from './i18n.js';
 
 const ink = '#0b1e24';
 const mint = '#8de6c8';
@@ -91,10 +92,39 @@ export function addFilmSet(scene, ship, {scripted = true} = {}) {
     return panel;
   }
   const radiation = workstation('film-radiation-station', [26.64, 1.5, 4.32], -Math.PI / 2);
+  stage.getObjectByName('film-radiation-station-screen').userData = {kind:'radiation'};
   const bodyMap = workstation('film-body-map-station', [-13.1, 1.4, -5.40], 0, -.12);
   stage.getObjectByName('film-body-map-station-screen').userData = {kind:'phone', id:0, route:'/app/body-map'};
   let previousRadiation;
+  function setRadiationSnapshot(snapshot) {
+    if (scripted) return;
+    const {ctx, map, material} = radiation;
+    const live = snapshot?.environment.sourceStatus === 'fresh';
+    const value = live ? snapshot.environment.rateUsvH : null;
+    const warning = live && snapshot.environment.radiationEvent !== 'background';
+    ctx.fillStyle = '#10262d'; ctx.fillRect(0,0,1280,720);
+    text(ctx,t('Current Radiation Dose Equivalent Rate'),52,80,38);
+    text(ctx,value == null ? '— μSv/h' : value.toFixed(1) + ' μSv/h',52,196,82,warning?'#ffd187':mint);
+    const labels = {background:'Background',elevated_exposure:'Elevated Exposure',radiation_event:'Radiation Event'};
+    text(ctx,t(live ? labels[snapshot.environment.radiationEvent] : 'Data unavailable'),52,268,40,warning?'#ffd187':mint);
+    const points = snapshot?.recentRatePoints ?? [];
+    const start = points[0]?.elapsedMs ?? 0, end = Math.max(start+1,snapshot?.elapsedMs ?? 1);
+    const maximum = Math.max(100,...points.map(p=>p.rateUsvH ?? 0));
+    ctx.strokeStyle = warning?'#ffd187':mint; ctx.lineWidth = 5; ctx.beginPath();
+    let pen = false;
+    for (const point of points) {
+      if (point.rateUsvH == null) { pen=false; continue; }
+      const x=60+1160*(point.elapsedMs-start)/(end-start),y=510-190*point.rateUsvH/maximum;
+      if (pen) ctx.lineTo(x,y); else ctx.moveTo(x,y);
+      pen=true;
+    }
+    ctx.stroke();
+    text(ctx,'μSv/h · '+t('Shared monitoring time')+' · '+((snapshot?.elapsedMs ?? 0)/1000).toFixed(0)+' s',52,560,30);
+    text(ctx,'SIMULATION · '+t('Last saved')+': '+(snapshot?.checkpointAt?.slice(11,19) ?? '—')+' UTC',52,645,30,'#d3b980');
+    material.color.set('#ffffff'); map.needsUpdate=true;
+  }
   function updateRadiation(time) {
+    if (!scripted) return;
     const warning = scenarioReadings(readings(time, false), null).some(sample => sample.environmentalWarning);
     if (warning === previousRadiation) return;
     const { ctx, map, material } = radiation;
@@ -287,5 +317,7 @@ export function addFilmSet(scene, ship, {scripted = true} = {}) {
     previousLevel = level;
   }
   update(0);
-  return { update, setMedicalTextures, setVisible(visible) { stage.visible = visible; } };
+  if (!scripted) setRadiationSnapshot(null);
+  return { update, setMedicalTextures, setRadiationSnapshot, radiationCanvas:radiation.ctx.canvas,
+    setVisible(visible) { stage.visible = visible; } };
 }

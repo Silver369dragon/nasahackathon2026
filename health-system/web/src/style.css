@@ -1843,3 +1843,31 @@ footer > span:first-child {
   footer { flex-wrap: wrap; gap: 7px; }
   .emergency-log li { flex-direction: column; }
 }
+/* Radiation reuses panel, chart and simulation-label styles. */
+.radiation-panel{padding:20px;margin:18px 0;min-width:0}
+.radiation-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.radiation-heading h2{margin:0;font-size:1.1rem}
+.radiation-environment{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:16px 0}
+.radiation-value{font-size:1.9rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.radiation-value small{font-size:.85rem;font-weight:500}
+.radiation-crew{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
+.radiation-person{border:1px solid var(--border,#d4dfda);border-radius:12px;padding:14px;min-width:0}
+.radiation-person h3{font-size:.9rem;margin:0 0 12px;line-height:1.5}
+.radiation-breakdown{display:grid;gap:6px;margin-top:12px;font-size:.8rem}
+.radiation-breakdown b{font-variant-numeric:tabular-nums;margin-left:8px}
+.radiation-panel p,.radiation-panel small{line-height:1.6}
+.radiation-panel summary{cursor:pointer;padding:10px 0}
+.radiation-history{padding-left:18px;overflow-wrap:anywhere}
+.radiation-history li{margin-bottom:12px}
+.radiation-history small{display:block}
+.radiation-actions{display:flex;gap:8px;flex-wrap:wrap}
+.radiation-controls{margin:14px 0}
+.radiation-event{border-color:#b87528;box-shadow:inset 4px 0 #b87528}
+.radiation-board{display:flex;align-items:center;justify-content:space-between;gap:10px 20px;flex-wrap:wrap;padding:8px 14px;margin:6px 0;font-size:12px}
+.radiation-board h2{font-size:12px;margin:0 0 4px}
+.radiation-board small{display:block;font-size:10px}
+.radiation-board .radiation-value{display:block;font-size:22px;line-height:1.2}
+.radiation-board .radiation-value small{display:inline}
+.board .page-title{gap:16px;flex-wrap:wrap}
+.board .page-title>.radiation-board{flex:1;min-width:280px;margin:0}
+@media(max-width:600px){.radiation-environment{grid-template-columns:1fr}.radiation-panel{padding:14px}}
