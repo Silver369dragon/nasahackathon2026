@@ -1,0 +1,12 @@
+.chat-source { margin: .4rem 0; border: 1px solid var(--line); border-radius: .35rem; background: var(--paper); color: var(--ink); overflow-wrap: anywhere; }
+.chat-source summary { padding: .55rem .7rem; font-size: .92rem; line-height: 1.45; }
+.chat-source summary span { color: var(--accent); font-weight: 700; margin-right: .35rem; }
+.chat-source[open] > summary { border-bottom: 1px solid var(--line); }
+.chat-source-body { padding: .7rem; }
+.chat-source-body p, .chat-source-body h4 { margin: .35rem 0; line-height: 1.55; }
+.chat-source-body dl { margin: 0; display: grid; grid-template-columns: minmax(4.4rem,auto) 1fr; gap: .35rem .7rem; }
+.chat-source-body dt, .chat-source-body li small { color: var(--muted); }
+.chat-source-body dd { margin: 0; }
+.chat-source-body ul { padding-left: 1.3rem; margin: .5rem 0 0; }
+.chat-source-body li small { display: block; }
+.chat-source-body a { color: var(--accent); text-decoration: underline; }

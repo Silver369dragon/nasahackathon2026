@@ -1,0 +1,65 @@
+.training-plan, .training-team { margin-bottom: 22px; }
+.training-plan .section-title time, .training-team .section-title time {
+  margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400;
+}
+.training-load { padding: 14px; color: var(--muted); }
+.training-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.training-task { min-width: 0; padding: 15px; }
+.training-task header { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.training-symbol { color: var(--accent); display: grid; place-items: center; }
+.training-task h3, .training-progress h3 { font-size: 18px; font-weight: 600; }
+.training-status { margin-left: auto; padding: 3px 7px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; color: var(--muted); }
+.training-status.completed, .training-status.in_progress { background: #e4efdc; color: #275236; border-color: #c0d1b7; }
+.training-due, .training-record time { color: var(--muted); margin: 8px 0; font-size: 11px; }
+.training-fields { margin: 13px 0 0; padding: 0; border: 0; min-width: 0; }
+.training-fields, .training-fields form, .training-record { display: grid; gap: 9px; }
+.training-fields label { font-size: 13px; gap: 4px; }
+.training-fields input, .training-fields select { height: 36px; padding: 5px 8px; }
+.training-fields .primary, .training-fields .secondary { font-size: 13px; min-height: 35px; padding: 6px 10px; justify-self: start; }
+.training-fields .text-btn { justify-self: start; font-size: 13px; }
+.training-skip.text-btn { color: var(--muted); }
+.training-fields .training-skip-form { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 10px; }
+.training-buttons, .training-clock { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.training-clock span { font-family: var(--mono); }
+.training-detail, .training-record { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.training-record p svg { vertical-align: middle; }
+.training-progress { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+.training-progress > section { min-width: 0; padding: 15px; }
+.training-progress h3, .training-reminders h2 { display: flex; align-items: center; gap: 7px; }
+.training-progress h3 svg { color: var(--accent); }
+.training-progress ul, .training-progress ol, .training-reminders ul { margin: 0; padding: 0; list-style: none; }
+.training-caption, .training-legend { font-size: 12px; color: var(--muted); }
+.training-caption { margin-top: 5px; }
+.training-history ol { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 13px 0 8px; }
+.training-history li { display: grid; justify-items: center; gap: 5px; border-right: 1px solid var(--line); font: 11px var(--mono); }
+.training-history li:last-child { border-right: 0; }
+.training-history time { color: var(--muted); }
+.training-day-icon { display: grid; place-items: center; width: 22px; height: 22px; color: #677973; }
+.trained .training-day-icon, .training-legend svg { color: var(--accent); }
+.trained .training-day-icon { border-radius: 50%; background: #e4efdc; }
+.training-legend { display: flex; align-items: center; gap: 5px; }
+.training-badges ul { margin-top: 8px; }
+.training-badges li { display: flex; align-items: center; gap: 7px; padding: 6px 0; color: var(--muted); font-size: 13px; }
+.training-badges li + li { border-top: 1px solid var(--line); }
+.training-badges li.awarded { color: var(--accent); font-weight: 600; }
+.training-badges small { margin-left: auto; font-size: 11px; text-align: right; }
+.training-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 12px 0; }
+.training-counts div { padding: 0 14px; border-right: 1px solid var(--line); }
+.training-counts div:last-child { border: 0; }
+.training-counts dt { font-size: 13px; color: var(--muted); }
+.training-counts dd { margin: 3px 0 0; font-size: 25px; font-weight: 600; }
+.training-reminders { border: 1px solid #cbb986; border-left: 4px solid #94702a; border-radius: 5px; padding: 12px 14px; background: #fbf7e9; margin: 12px 0; }
+.training-reminders h2 { font-size: 16px; }
+.training-reminders li { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; }
+.training-reminders .secondary { min-height: 32px; padding: 5px 8px; font-size: 12px; }
+@media(max-width: 900px) {
+  .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+}
+@media(max-width: 650px) {
+  .training-grid, .training-progress { grid-template-columns: 1fr; }
+  .training-task, .training-progress > section { padding: 12px; }
+  .training-reminders li { flex-wrap: wrap; }
+  .training-counts div { padding: 0 6px; }
+  .training-counts dt { font-size: 12px; }
+  .training-plan .section-title, .training-team .section-title { flex-wrap: wrap; }
+}

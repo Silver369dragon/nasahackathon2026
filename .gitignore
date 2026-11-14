@@ -1,0 +1,36 @@
+# Local configuration, keys and runtime data
+.env
+.env.*
+*.key
+*.pem
+*.sqlite*
+*.db
+*.log
+
+# Dependencies, builds and caches
+node_modules/
+.venv/
+dist/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.tsbuildinfo
+
+# Local tests and review material
+tests/
+e2e/
+integration/
+*.test.*
+*.spec.*
+playwright*.config.*
+test-results/
+playwright-report/
+coverage/
+.qa/
+review/
+review-explore.mjs
+
+# Project specifications
+*[Ss]pec*.md

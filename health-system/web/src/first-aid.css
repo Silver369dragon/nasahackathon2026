@@ -1,0 +1,30 @@
+.aid-page { max-width: 58rem; color: var(--ink); }
+.aid-top { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1.4rem; }
+.aid-top h2, .aid-card h3 { margin: 0 0 .35rem; line-height: 1.18; }
+.aid-top h2 { font-size: 1.75rem; }
+.aid-page p { margin: .25rem 0; line-height: 1.55; }
+.aid-top p, .aid-contact small, .aid-card small { color: var(--muted); }
+.aid-contact { display: grid; gap: .25rem; }
+.aid-help, .aid-back { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+.aid-help { min-height: 44px; padding: .6rem .95rem; border-radius: .45rem; background: #8e342c; color: white; font-weight: 700; }
+.aid-help:disabled { opacity: .65; }
+.aid-back { background: transparent; padding: .5rem .1rem; color: var(--accent); font-weight: 600; }
+.aid-feedback { padding: .5rem .8rem; background: #e6f0e9; border-left: 3px solid var(--accent); }
+.aid-index { display: grid; gap: .65rem; }
+.aid-index button { width: 100%; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .9rem; text-align: left; background: var(--paper); border: 1px solid var(--line); padding: 1rem; border-radius: .5rem; }
+.aid-index button:hover { border-color: var(--accent); }
+.aid-icon { display: grid; place-items: center; height: 2.7rem; width: 2.7rem; color: var(--accent); background: #e6f0e9; border-radius: .45rem; }
+.aid-index strong, .aid-card footer small { display: block; }
+.aid-index strong { font-size: 1.12rem; }
+.aid-index small, .aid-scope { color: var(--accent); font-weight: 600; }
+.aid-card { margin-top: .5rem; background: var(--paper); border: 1px solid var(--line); border-radius: .5rem; padding: clamp(1rem,3vw,1.75rem); }
+.aid-card h3 { margin-top: .45rem; font-size: 1.5rem; }
+.aid-card h4 { margin: 0; font-size: 1.04rem; }
+.aid-card .aid-review { color: var(--muted); font-size: .88rem; }
+.aid-steps { padding-left: 1.55rem; line-height: 1.55; }
+.aid-steps li { padding: .65rem 0 .65rem .2rem; }
+.aid-steps li::marker { color: var(--accent); font-weight: 700; }
+.aid-card footer { border-top: 1px solid var(--line); padding-top: 1rem; }
+.aid-card footer ul { list-style: none; padding: 0; margin: .55rem 0 0; }
+.aid-card footer li + li { margin-top: .45rem; }
+.aid-card footer a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; }

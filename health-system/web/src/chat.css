@@ -1,0 +1,13 @@
+.chat-workspace { display: grid; gap: 16px; max-width: 860px; }
+.chat-toolbar, .chat-starters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chat-toolbar { justify-content: space-between; }
+.chat-toolbar p { margin: 0; }
+.chat-log { display: grid; gap: 12px; }
+.chat-turn, .chat-compose { background: var(--surface, #fbfcfa); border: 1px solid #cad9d3; border-radius: 9px; padding: 18px; min-width: 0; }
+.chat-turn h3 { margin: 0 0 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
+.chat-turn small { display: flex; gap: 6px; align-items: center; color: #376757; }
+.chat-turn p { white-space: pre-line; line-height: 1.55; overflow-wrap: anywhere; }
+.chat-sources { display: grid; gap: 5px; }
+.chat-compose { display: grid; gap: 8px; }
+.chat-compose textarea { width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; padding: 10px; resize: vertical; }
+.chat-compose button { justify-self: end; }

@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+warn_unused_ignores = true
+explicit_package_bases = true
+files = ["backend", "mock_adapter.py"]
+
+[tool.ruff]
+target-version = "py312"
+extend-exclude = ["web"]
