@@ -14,6 +14,13 @@ type History = { items: Turn[]; conversationId: string | null }
 type Props = { session: Session; lang: Lang; deny: () => void; openAid: (id: AidTarget) => void
   assessmentId?: string; clearAssessment: () => void }
 
+function responsePreview(text: string) {
+  const paragraph = text.split(/\n+/).find(line => line.trim()) ?? text
+  if (paragraph.length <= 280) return paragraph
+  const sentenceEnd = paragraph.slice(0, 280).search(/[。！？]|[.!?](?=\s)/)
+  return sentenceEnd >= 0 ? paragraph.slice(0, sentenceEnd + 1) : paragraph
+}
+
 export function Chat({ session, lang, deny, openAid, assessmentId, clearAssessment }: Props) {
   const [items, setItems] = useState<Turn[]>([])
   const [conversation, setConversation] = useState<string | null>(null)
@@ -101,7 +108,7 @@ export function Chat({ session, lang, deny, openAid, assessmentId, clearAssessme
   }
   return <section className="chat-workspace">
     <div className="chat-toolbar">
-      <p>{t('Ask about your own health readings and daily training.', '查詢自己的量測、感測警示與每日訓練紀錄。')}</p>
+      <p><MessageCircle size={20}/>{t('Your records, explained.', '讀懂你的健康紀錄。')}</p>
       <button className="secondary" onClick={() => openAid('first-aid')}><BookHeart size={16}/>{t('First aid', '急救指引')}</button>
     </div>
     {!items.length && !loading && <div className="chat-starters">
@@ -113,14 +120,17 @@ export function Chat({ session, lang, deny, openAid, assessmentId, clearAssessme
       <small><MessageCircle size={14}/>{turn.status === 'completed' ? t('AI · verified records','AI · 已核對資料') :
         turn.status === 'pending' ? t('Local summary · AI is responding','本機摘要 · AI 回覆中') :
         turn.status === 'no_evidence' ? t('Local · limited evidence','本機 · 資料不足') : t('Local summary · cloud unavailable','本機摘要 · 雲端回覆未採用')}</small>
-      <p>{turn.text}</p>
-      <div className="chat-sources">{turn.citations.map(ref => <ChatSource key={[ref.kind,ref.id,ref.chunkId].join('-')} citation={ref} lang={lang} deny={deny}/>)}</div>
+      <p>{responsePreview(turn.text)}</p>
+      {responsePreview(turn.text) !== turn.text && <details className="disclosure"><summary>{t('Full response', '完整回覆')}</summary><p>{turn.text}</p></details>}
+      <details className="disclosure chat-evidence"><summary>{turn.citations.length} {t('linked sources', '筆引用來源')}</summary>
+        <div className="chat-sources">{turn.citations.map(ref => <ChatSource key={[ref.kind,ref.id,ref.chunkId].join('-')} citation={ref} lang={lang} deny={deny}/>)}</div>
+      </details>
     </article>)}</div>
     {error && <p className="notice" role="alert">{t('Could not sync this conversation.', '對話尚未同步。')}
       <button type="button" className="text-btn" onClick={() => setAttempt(a => a + 1)}>{t('Reload','重新載入')}</button></p>}
     <form onSubmit={ask} className="chat-compose">
       <label htmlFor="health-question">{t('Your question','你的問題')}</label>
-      <textarea id="health-question" rows={3} maxLength={1600} value={question} onChange={e => setQuestion(e.target.value)}/>
+      <textarea id="health-question" rows={2} placeholder={t('Ask about a reading…', '詢問一筆量測…')} maxLength={1600} value={question} onChange={e => setQuestion(e.target.value)}/>
       <button className="primary" disabled={!question.trim() || ((loading || sending || !!pending) && !detectFirstAid(question))}><Send size={15}/>{t('Send','送出')}</button>
     </form>
   </section>

@@ -32,7 +32,7 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { api, restricted, stationBase } from './api'
-import { canView, home, metrics, tx, type Emergency, type Lang, type Session, type View } from './domain'
+import { canView, home, monitoringMetrics as metrics, tx, type Emergency, type Lang, type Session, type View } from './domain'
 import { Catalog, CrewBoard, History, Reading } from './Readings'
 import { Measure } from './Measure'
 import { label } from './labels'
@@ -45,6 +45,7 @@ import { Chat } from './Chat'
 import { Trends } from './Trends'
 import { AssessmentStatus, News2 } from './AssessmentForm'
 import { BodyOverview } from './BodyOverview'
+import { BodyLoadBoundary } from './BodyLoadBoundary'
 import './style.css'
 
 const BodyMap = lazy(() => import('./BodyMap'))
@@ -65,11 +66,11 @@ function Language({ lang, change }: { lang: Lang; change: () => void }) {
   return (
     <button
       className="language"
-      aria-label={tx(lang, '切換至繁體中文', 'Switch to English')}
+      aria-label={tx(lang, 'Switch language to Traditional Chinese', '切換至英文')}
       onClick={change}
     >
       <Globe2 size={15} />
-      {lang === 'en' ? '繁中' : 'English'}
+      {lang === 'en' ? 'EN' : '中'}
     </button>
   )
 }
@@ -343,6 +344,12 @@ function Console({
       {!isBoard && (
         <aside className="rail">
           <Brand />
+          <select className="mobile-navigation" aria-label={t('Navigate workspace', '切換工作區頁面')}
+            value={aidPage ? paths.aid : detail ? paths.system : nav.some(item => item.path === path) ? path : paths.personal}
+            onChange={event => event.target.value === 'logout' ? signOut() : go(event.target.value)}>
+            {nav.map(item => <option key={item.path} value={item.path}>{item.text}</option>)}
+            {!stationBase && <option value="logout">{t('Sign out', '登出')}</option>}
+          </select>
           <div className="rail-section">{t('Workspace', '工作區')}</div>
           <nav aria-label={t('Workspace navigation', '工作區導覽')}>
             {nav.map(({ path: dest, text, Icon }) => (
@@ -447,7 +454,7 @@ function Console({
                 ' ' + t('Last sync', '最後同步') + ' ' + new Date(feed.syncedAt).toLocaleTimeString(lang)}
             </p>
           )}
-          <EmergencyNotices items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>
+          <EmergencyNotices crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>
           {detail && (
             <button className="back" onClick={() => go(paths.system)}>
               <ArrowLeft size={14} />
@@ -459,7 +466,7 @@ function Console({
             <div>
               <div className="kicker">
                 <span />
-                {personal ? session.username : t('Crew operations', '船員作業')}
+                {personal ? (crew?.name ?? session.username) : t('Crew operations', '船員作業')}
               </div>
               <h1>{title}</h1>
               {overview && !isBoard && (
@@ -494,12 +501,18 @@ function Console({
             {t('Delivery is unconfirmed. Retry to check or send the same request.', '尚未確認送達。重新送出會查核同一筆求助。')}</p>}
           {path === paths.personal && help.status === 'rejected' && <p className="notice" role="alert">
             {t('The server could not accept the request. Try again.', '伺服器未受理求助，請再試一次。')}</p>}
-          {personal && path !== paths.body && <PersonalTraining session={session} lang={lang} deny={deny} refreshToken={feed.trainingRevision}
-            showTasks={path === paths.personal || path === paths.tasks} goMeasure={() => go(paths.measure)} />}
           {path === paths.body ? (
+            <BodyLoadBoundary key={session.username + session.csrfToken} fallback={
+              <div className="panel empty-state" data-testid="body-page-unavailable" role="alert">
+                <p>{t('Body view could not load. Reload the page to try again.', '人體檢視載入失敗，請重新載入頁面再試。')}</p>
+                <button onClick={() => window.location.reload()}>{t('Reload page', '重新載入頁面')}</button>
+                <button onClick={() => go(paths.personal)}>{t('Back to overview', '返回個人總覽')}</button>
+              </div>
+            }>
             <Suspense fallback={<div className="panel empty-state">{t('Loading body view…', '正在載入人體檢視…')}</div>}>
               <BodyMap key={session.username + session.csrfToken} session={session} lang={lang} deny={deny} back={() => go(paths.personal)} />
             </Suspense>
+            </BodyLoadBoundary>
           ) : path === paths.assessment ? (
             <News2 session={session} lang={lang} deny={deny} assessmentRevision={feed.assessmentRevision}
               revision={feed.historyRevision[session.username]} measure={() => go(paths.measure)}
@@ -563,9 +576,15 @@ function Console({
                   </div>
                 </>
               )}
-              <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
+              {path === paths.history ?
+                <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} /> :
+                <details className="disclosure panel"><summary><HistoryIcon size={17}/>{t('Measurement history', '量測歷史')}</summary>
+                  <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
+                </details>}
             </div>
           )}
+          {personal && <PersonalTraining session={session} lang={lang} deny={deny} refreshToken={feed.trainingRevision}
+            showTasks={path === paths.personal || path === paths.tasks} compact={path === paths.personal} goMeasure={() => go(paths.measure)} />}
           <footer>
             <span>
               <Earth size={13} />

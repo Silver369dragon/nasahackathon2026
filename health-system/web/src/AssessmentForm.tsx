@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, newId, restricted } from './api'
-import { stamp, tx, type Lang, type Measurement, type Session } from './domain'
+import { prettyValue, stamp, tx, type Lang, type Measurement, type Session } from './domain'
 import { label } from './labels'
 import { choices, nameOf, problemText, units, valueOf, vitalCodes, type Assessment, type AssessmentSummary, type Field, type Vital } from './news2'
 import './news2.css'
@@ -145,7 +145,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
           edit({ links })
         }}><option value="">{t('Enter this observation','輸入本次觀察')}</option>
           {chosen && !options.some(v => v.id === chosen) && <option value={chosen}>{t('Linked reading','已連結的量測')}</option>}
-          {options.map(m => <option key={m.id} value={m.id}>{stamp(m.observedAt,lang)} · {m.value ?? '—'} {units[k]} · {label(m.provenance.source,lang)} · {label(m.quality,lang)}</option>)}
+          {options.map(m => <option key={m.id} value={m.id}>{stamp(m.observedAt,lang)} · {prettyValue(m, true, lang)} {units[k]} · {label(m.provenance.source,lang)} · {label(m.quality,lang)}</option>)}
         </select>
       </label>
       {!chosen && control(k)}

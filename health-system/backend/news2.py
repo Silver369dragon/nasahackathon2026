@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from .models import Contract, Identifier, utc_text
+from .models import Contract, Identifier, canonical_measurement, utc_text
 from .store import Data, Problem, append_event, connection, digest, encoded, now_text
 
 SCHEMA = """
@@ -121,7 +121,7 @@ def assess(db: sqlite3.Connection, crew: str, body: SaveAssessment) -> Data:
                          (crew, ident, field)).fetchone()
         if not row:
             raise Problem(422, "INVALID_MEASUREMENT", "A linked measurement is unavailable for this field.")
-        m = json.loads(row[0])
+        m = canonical_measurement(json.loads(row[0]))
         effective[field] = m["value"]
         evidence[field] = {k: m[k] for k in ("id", "value", "unit", "observedAt", "method", "quality")}
         evidence[field]["source"] = m["provenance"]["source"]

@@ -1,4 +1,4 @@
-import { tx, type Lang } from './domain'
+import { tx, type Lang, type MeasurementContext } from './domain.ts'
 
 const labels: Record<string, [string, string]> = {
   good: ['Good', '良好'],
@@ -39,9 +39,23 @@ const labels: Record<string, [string, string]> = {
   hardware: ['Hardware', '實體裝置'],
   replay: ['Replay', '重播'],
   wokwi: ['Wokwi', 'Wokwi 模擬韌體'],
+  respiratory_rate: ['Respiratory rate', '呼吸頻率'],
+  work_of_breathing: ['Work of breathing', '呼吸費力程度'],
+  sensor_disconnected: ['Sensor disconnected', '感測器中斷'],
+  sensor_not_responding: ['Sensor not responding', '感測器未回應'],
+  scale_not_configured: ['Scale not configured', '量表尚未設定'],
 }
 
 export function label(key: string, lang: Lang) {
   const pair = labels[key]
   return pair ? tx(lang, ...pair) : key.replaceAll('_', ' ')
+}
+
+export function contextLabels(context: MeasurementContext, lang: Lang): string[] {
+  return Object.entries(context).flatMap(([key, value]) => {
+    if (value === null || value === '') return []
+    if (key === 'observationDuration') return [tx(lang, 'Observation window', '觀察時間窗') + ' · ' + value + ' s']
+    if (typeof value === 'boolean') return [label(key, lang) + ' · ' + tx(lang, value ? 'Yes' : 'No', value ? '是' : '否')]
+    return [label(String(value), lang)]
+  })
 }

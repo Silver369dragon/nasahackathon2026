@@ -1,0 +1,693 @@
+{
+  "width": 1280,
+  "height": 720,
+  "language": "en",
+  "clips": {
+    "body-map": {
+      "duration": 4,
+      "presentation": "desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "pixelRatio": 1,
+      "fps": 30,
+      "language": "en",
+      "video": "/film-assets/body-map/body-map.webm",
+      "source": "actual /app/body-map UI; mock synthetic baseline scan",
+      "frames": [
+        {
+          "src": "/film-assets/body-map/frame-0001.jpg",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/body-map/frame-0002.jpg",
+          "time": 0.03333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0003.jpg",
+          "time": 0.06666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0004.jpg",
+          "time": 0.1
+        },
+        {
+          "src": "/film-assets/body-map/frame-0005.jpg",
+          "time": 0.13333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0006.jpg",
+          "time": 0.16666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0007.jpg",
+          "time": 0.2
+        },
+        {
+          "src": "/film-assets/body-map/frame-0008.jpg",
+          "time": 0.23333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0009.jpg",
+          "time": 0.26666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0010.jpg",
+          "time": 0.3
+        },
+        {
+          "src": "/film-assets/body-map/frame-0011.jpg",
+          "time": 0.3333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0012.jpg",
+          "time": 0.36666666666666664
+        },
+        {
+          "src": "/film-assets/body-map/frame-0013.jpg",
+          "time": 0.4
+        },
+        {
+          "src": "/film-assets/body-map/frame-0014.jpg",
+          "time": 0.43333333333333335
+        },
+        {
+          "src": "/film-assets/body-map/frame-0015.jpg",
+          "time": 0.4666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0016.jpg",
+          "time": 0.5
+        },
+        {
+          "src": "/film-assets/body-map/frame-0017.jpg",
+          "time": 0.5333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0018.jpg",
+          "time": 0.5666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0019.jpg",
+          "time": 0.6
+        },
+        {
+          "src": "/film-assets/body-map/frame-0020.jpg",
+          "time": 0.6333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0021.jpg",
+          "time": 0.6666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0022.jpg",
+          "time": 0.7
+        },
+        {
+          "src": "/film-assets/body-map/frame-0023.jpg",
+          "time": 0.7333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0024.jpg",
+          "time": 0.7666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0025.jpg",
+          "time": 0.8
+        },
+        {
+          "src": "/film-assets/body-map/frame-0026.jpg",
+          "time": 0.8333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0027.jpg",
+          "time": 0.8666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0028.jpg",
+          "time": 0.9
+        },
+        {
+          "src": "/film-assets/body-map/frame-0029.jpg",
+          "time": 0.9333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0030.jpg",
+          "time": 0.9666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0031.jpg",
+          "time": 1
+        },
+        {
+          "src": "/film-assets/body-map/frame-0032.jpg",
+          "time": 1.0333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0033.jpg",
+          "time": 1.0666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0034.jpg",
+          "time": 1.1
+        },
+        {
+          "src": "/film-assets/body-map/frame-0035.jpg",
+          "time": 1.1333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0036.jpg",
+          "time": 1.1666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0037.jpg",
+          "time": 1.2
+        },
+        {
+          "src": "/film-assets/body-map/frame-0038.jpg",
+          "time": 1.2333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0039.jpg",
+          "time": 1.2666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0040.jpg",
+          "time": 1.3
+        },
+        {
+          "src": "/film-assets/body-map/frame-0041.jpg",
+          "time": 1.3333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0042.jpg",
+          "time": 1.3666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0043.jpg",
+          "time": 1.4
+        },
+        {
+          "src": "/film-assets/body-map/frame-0044.jpg",
+          "time": 1.4333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0045.jpg",
+          "time": 1.4666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0046.jpg",
+          "time": 1.5
+        },
+        {
+          "src": "/film-assets/body-map/frame-0047.jpg",
+          "time": 1.5333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0048.jpg",
+          "time": 1.5666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0049.jpg",
+          "time": 1.6
+        },
+        {
+          "src": "/film-assets/body-map/frame-0050.jpg",
+          "time": 1.6333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0051.jpg",
+          "time": 1.6666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0052.jpg",
+          "time": 1.7
+        },
+        {
+          "src": "/film-assets/body-map/frame-0053.jpg",
+          "time": 1.7333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0054.jpg",
+          "time": 1.7666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0055.jpg",
+          "time": 1.8
+        },
+        {
+          "src": "/film-assets/body-map/frame-0056.jpg",
+          "time": 1.8333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0057.jpg",
+          "time": 1.8666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0058.jpg",
+          "time": 1.9
+        },
+        {
+          "src": "/film-assets/body-map/frame-0059.jpg",
+          "time": 1.9333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0060.jpg",
+          "time": 1.9666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0061.jpg",
+          "time": 2
+        },
+        {
+          "src": "/film-assets/body-map/frame-0062.jpg",
+          "time": 2.033333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0063.jpg",
+          "time": 2.066666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0064.jpg",
+          "time": 2.1
+        },
+        {
+          "src": "/film-assets/body-map/frame-0065.jpg",
+          "time": 2.1333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0066.jpg",
+          "time": 2.1666666666666665
+        },
+        {
+          "src": "/film-assets/body-map/frame-0067.jpg",
+          "time": 2.2
+        },
+        {
+          "src": "/film-assets/body-map/frame-0068.jpg",
+          "time": 2.2333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0069.jpg",
+          "time": 2.2666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0070.jpg",
+          "time": 2.3
+        },
+        {
+          "src": "/film-assets/body-map/frame-0071.jpg",
+          "time": 2.3333333333333335
+        },
+        {
+          "src": "/film-assets/body-map/frame-0072.jpg",
+          "time": 2.3666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0073.jpg",
+          "time": 2.4
+        },
+        {
+          "src": "/film-assets/body-map/frame-0074.jpg",
+          "time": 2.433333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0075.jpg",
+          "time": 2.466666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0076.jpg",
+          "time": 2.5
+        },
+        {
+          "src": "/film-assets/body-map/frame-0077.jpg",
+          "time": 2.533333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0078.jpg",
+          "time": 2.566666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0079.jpg",
+          "time": 2.6
+        },
+        {
+          "src": "/film-assets/body-map/frame-0080.jpg",
+          "time": 2.6333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0081.jpg",
+          "time": 2.6666666666666665
+        },
+        {
+          "src": "/film-assets/body-map/frame-0082.jpg",
+          "time": 2.7
+        },
+        {
+          "src": "/film-assets/body-map/frame-0083.jpg",
+          "time": 2.7333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0084.jpg",
+          "time": 2.7666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0085.jpg",
+          "time": 2.8
+        },
+        {
+          "src": "/film-assets/body-map/frame-0086.jpg",
+          "time": 2.8333333333333335
+        },
+        {
+          "src": "/film-assets/body-map/frame-0087.jpg",
+          "time": 2.8666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0088.jpg",
+          "time": 2.9
+        },
+        {
+          "src": "/film-assets/body-map/frame-0089.jpg",
+          "time": 2.933333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0090.jpg",
+          "time": 2.966666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0091.jpg",
+          "time": 3
+        },
+        {
+          "src": "/film-assets/body-map/frame-0092.jpg",
+          "time": 3.033333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0093.jpg",
+          "time": 3.066666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0094.jpg",
+          "time": 3.1
+        },
+        {
+          "src": "/film-assets/body-map/frame-0095.jpg",
+          "time": 3.1333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0096.jpg",
+          "time": 3.1666666666666665
+        },
+        {
+          "src": "/film-assets/body-map/frame-0097.jpg",
+          "time": 3.2
+        },
+        {
+          "src": "/film-assets/body-map/frame-0098.jpg",
+          "time": 3.2333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0099.jpg",
+          "time": 3.2666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0100.jpg",
+          "time": 3.3
+        },
+        {
+          "src": "/film-assets/body-map/frame-0101.jpg",
+          "time": 3.3333333333333335
+        },
+        {
+          "src": "/film-assets/body-map/frame-0102.jpg",
+          "time": 3.3666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0103.jpg",
+          "time": 3.4
+        },
+        {
+          "src": "/film-assets/body-map/frame-0104.jpg",
+          "time": 3.433333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0105.jpg",
+          "time": 3.466666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0106.jpg",
+          "time": 3.5
+        },
+        {
+          "src": "/film-assets/body-map/frame-0107.jpg",
+          "time": 3.533333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0108.jpg",
+          "time": 3.566666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0109.jpg",
+          "time": 3.6
+        },
+        {
+          "src": "/film-assets/body-map/frame-0110.jpg",
+          "time": 3.6333333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0111.jpg",
+          "time": 3.6666666666666665
+        },
+        {
+          "src": "/film-assets/body-map/frame-0112.jpg",
+          "time": 3.7
+        },
+        {
+          "src": "/film-assets/body-map/frame-0113.jpg",
+          "time": 3.7333333333333334
+        },
+        {
+          "src": "/film-assets/body-map/frame-0114.jpg",
+          "time": 3.7666666666666666
+        },
+        {
+          "src": "/film-assets/body-map/frame-0115.jpg",
+          "time": 3.8
+        },
+        {
+          "src": "/film-assets/body-map/frame-0116.jpg",
+          "time": 3.8333333333333335
+        },
+        {
+          "src": "/film-assets/body-map/frame-0117.jpg",
+          "time": 3.8666666666666667
+        },
+        {
+          "src": "/film-assets/body-map/frame-0118.jpg",
+          "time": 3.9
+        },
+        {
+          "src": "/film-assets/body-map/frame-0119.jpg",
+          "time": 3.933333333333333
+        },
+        {
+          "src": "/film-assets/body-map/frame-0120.jpg",
+          "time": 3.966666666666667
+        }
+      ]
+    },
+    "trends": {
+      "duration": 0.75,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/trends-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/trends-02.png",
+          "time": 0.35
+        },
+        {
+          "src": "/film-assets/trends-03.png",
+          "time": 0.55
+        }
+      ]
+    },
+    "record-detail": {
+      "duration": 0.5,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/record-detail-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/record-detail-02.png",
+          "time": 0.25
+        }
+      ]
+    },
+    "overview": {
+      "duration": 0.75,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/overview-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/overview-02.png",
+          "time": 0.25
+        },
+        {
+          "src": "/film-assets/overview-03.png",
+          "time": 0.5
+        }
+      ]
+    },
+    "alert": {
+      "duration": 3.2,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/alert-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/alert-02.png",
+          "time": 1
+        },
+        {
+          "src": "/film-assets/alert-03.png",
+          "time": 2
+        }
+      ]
+    },
+    "question": {
+      "duration": 1.4,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/question-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/question-02.png",
+          "time": 0.7
+        }
+      ]
+    },
+    "guide": {
+      "duration": 3.6,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/guide-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/guide-02.png",
+          "time": 1.8
+        }
+      ]
+    },
+    "evidence": {
+      "duration": 1.8,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/evidence-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/evidence-02.png",
+          "time": 0.9
+        }
+      ]
+    },
+    "aid-route": {
+      "duration": 1.4,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/aid-route-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/aid-route-02.png",
+          "time": 0.7
+        }
+      ]
+    },
+    "aid-steps": {
+      "duration": 2.6,
+      "presentation": "phone",
+      "viewport": {
+        "width": 390,
+        "height": 700
+      },
+      "pixelRatio": 2,
+      "frames": [
+        {
+          "src": "/film-assets/aid-steps-01.png",
+          "time": 0
+        },
+        {
+          "src": "/film-assets/aid-steps-02.png",
+          "time": 1.3
+        }
+      ]
+    }
+  },
+  "clean": {
+    "board": "/film-assets/clean/board.png",
+    "boardNormal": "/film-assets/clean/board-normal.png",
+    "phone": "/film-assets/clean/phone.png",
+    "phoneNormal": "/film-assets/clean/phone-normal.png",
+    "taskPhone": "/film-assets/clean/task-phone.png",
+    "taskPhoneReady": "/film-assets/clean/task-phone-ready.png"
+  }
+}

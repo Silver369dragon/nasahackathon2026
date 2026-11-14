@@ -7,6 +7,7 @@ from itertools import pairwise
 
 from . import alerts, news2
 from .knowledge import search_knowledge
+from .models import canonical_measurement
 from .store import Data
 from .tasks import personal_tasks
 
@@ -55,7 +56,8 @@ def fact(text: str, refs: list[Data] | None = None, *, required: bool = False) -
 
 def measurement_fact(m: Data, zh: bool) -> Data:
     activity = m["context"].get("activity")
-    reading = f"{m['value']} {m['unit']}" if m["value"] is not None else ("缺值" if zh else "missing")
+    unit = {"/min": "bpm" if m["metricCode"] == "heart_rate" else "/min", "mm[Hg]": "mmHg"}.get(m["unit"], m["unit"])
+    reading = f"{m['value']} {unit}" if m["value"] is not None else ("缺值" if zh else "missing")
     stamp = m["observedAt"].replace("T", " ")[:19] + " UTC"
     metric = label(m["metricCode"], zh)
     context = label(activity if activity in ("rest", "exercise", "recovery") else "unknown", zh)
@@ -75,7 +77,10 @@ def _matched_context(m: Data) -> tuple:
 
 
 def trend_fact(samples: dict[str, Data], zh: bool) -> Data:
-    ordered = sorted(samples.items())
+    ordered = sorted((day, sample) for day, sample in samples.items()
+                     if isinstance(sample["value"], (int, float)) and not isinstance(sample["value"], bool))
+    if not ordered:
+        return fact("沒有可比較的數值資料。" if zh else "No comparable numeric readings are available.", required=True)
     values = [sample["value"] for _, sample in ordered]
     steps = [b - a for a, b in pairwise(values)]
     if all(step == 0 for step in steps):
@@ -115,23 +120,23 @@ def measurement_facts(db: sqlite3.Connection, crew: str, topic: str, zh: bool, q
             result.append(fact(f"目前沒有本人的{label(metric, zh)}紀錄。" if zh else
                                f"You have no recorded {label(metric, zh)}.", required=True))
             continue
-        m = json.loads(row[0])
+        m = canonical_measurement(json.loads(row[0]))
         result.append(measurement_fact(m, zh))
         if topic != "compare":
             continue
         today = datetime.now(UTC).date()
         yesterday = today - timedelta(days=1)
         samples = {}
-        if (m["observedAt"][:10] == today.isoformat() and m["quality"] == "good" and m["value"] is not None
+        if (m["observedAt"][:10] == today.isoformat() and m["quality"] == "good" and isinstance(m["value"], (int, float))
                 and m["context"].get("activity") in ("rest", "exercise", "recovery")):
             samples[today.isoformat()] = m
             rows = db.execute("SELECT document FROM measurements WHERE crew_id=? AND metric=? "
                               "AND observed>=? AND observed<? AND quality='good' ORDER BY observed DESC,row_id DESC",
                               (crew, metric, (today - timedelta(days=6)).isoformat(), today.isoformat()))
             for (raw,) in rows:
-                other = json.loads(raw)
+                other = canonical_measurement(json.loads(raw))
                 day = other["observedAt"][:10]
-                if day not in samples and other["value"] is not None and _matched_context(other) == _matched_context(m):
+                if day not in samples and isinstance(other["value"], (int, float)) and _matched_context(other) == _matched_context(m):
                     samples[day] = other
                 if len(samples) == 7:
                     break

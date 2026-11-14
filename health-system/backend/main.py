@@ -152,7 +152,7 @@ def public_events(db: sqlite3.Connection, position: int, head: int, view: str, u
                           ORDER BY seq LIMIT 100""", args).fetchall()
     result = []
     for row in rows:
-        payload = json.loads(row["document"])
+        payload = {**json.loads(row["document"]), "schemaVersion": "1.3"}
         if row["kind"] == "crew_summary.updated":
             payload["payload"] = project_summary(payload["payload"], view)
         elif row["kind"] in ("measurement.accepted", "measurement.corrected"):
@@ -201,7 +201,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                 job.cancel()
             await asyncio.gather(*application.state.chat_jobs, return_exceptions=True)
 
-    app = FastAPI(title="Crew Health Training", version="1.2", lifespan=lifespan)
+    app = FastAPI(title="Crew Health Training", version="1.3", lifespan=lifespan)
     app.state.db_path = path
     app.state.chat_jobs = set()
     app.add_middleware(PacketLimit)
@@ -361,7 +361,7 @@ def register_reads(app: FastAPI, path: Path) -> None:
                 for a in list_alerts(db, user["crewId"], state)
             ]
             cursor = cursor_token(app.state.secret, scope, event_head(db))
-        data = {"schemaVersion": "1.2", "runId": None, "mode": "training", "run": None,
+        data = {"schemaVersion": "1.3", "runId": None, "mode": "training", "run": None,
                 "scopeVersion": 1, "view": view, "cursor": cursor, "crewSummaries": summaries,
                 "currentMeasurements": [dict(crewId=c["crewId"], **m) for c in summaries for m in c["metricCards"]],
                 "alerts": alerts, "emergencies": emergencies,

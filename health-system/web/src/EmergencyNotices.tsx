@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BellRing, ChevronDown, ChevronUp } from 'lucide-react'
-import { shouldNotifyDesktop, stamp, tx, type Emergency, type Lang, type Session } from './domain'
+import { shouldNotifyDesktop, stamp, tx, type CrewSummary, type Emergency, type Lang, type Session } from './domain'
 import { api } from './api'
 
 function sourceLabel(item: Emergency, lang: Lang) {
@@ -72,8 +72,8 @@ export function DesktopNoticeOptIn({ lang, session }: { lang: Lang; session: Ses
   </button>{error && <span role="status">{t('Could not enable or update push. Try again.', '無法更新裝置推播，請重試。')}</span>}</div>
 }
 
-export function EmergencyNotices({ items, lang, username, crewId }: {
-  items: Emergency[]; lang: Lang; username: string; crewId: string | null
+export function EmergencyNotices({ items, lang, username, crewId, crew }: {
+  items: Emergency[]; lang: Lang; username: string; crewId: string | null; crew: CrewSummary[]
 }) {
   const foldedKey = 'orbital.emergency.folded.' + username
   const [folded, setFolded] = useState(() => sessionStorage.getItem(foldedKey) ?? '')
@@ -96,7 +96,7 @@ export function EmergencyNotices({ items, lang, username, crewId }: {
     </button>
     {!collapsed && <>
       <ul className="emergency-log" aria-live={mine ? 'off' : 'polite'}>{(all ? items : [newest]).map(item => <li key={item.id} data-testid={'emergency-' + item.id}>
-        <div><b>{nameOf(item)}</b><span>{sourceLabel(item, lang)}</span></div>
+        <div><b>{crew.find(row => row.crewId === item.crewId)?.name ?? nameOf(item)}</b><span>{sourceLabel(item, lang)}</span></div>
         <time dateTime={item.createdAt}>{stamp(item.createdAt, lang)}</time>
       </li>)}</ul>
       {items.length > 1 && <button className="emergency-history" type="button" aria-expanded={all} onClick={() => setAll(!all)}>

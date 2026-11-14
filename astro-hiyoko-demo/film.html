@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101719">
+  <title>Astro Hiyoko · 船艙攝影台</title>
+  <link rel="stylesheet" href="film.css">
+  <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/","mediabunny":"./node_modules/mediabunny/dist/bundles/mediabunny.mjs"}}</script>
+</head>
+<body>
+  <header><div class="heading"><a href="./" id="cabin" aria-label="回到船艙">← 船艙</a><h1>船艙攝影台</h1><span class="brand" lang="en">Astro Hiyoko</span></div>
+    <div class="actions"><button id="preview" disabled>▶ 預覽全片</button><button id="record" class="record" disabled>● 錄製影片</button></div>
+  </header>
+  <main>
+    <section class="workspace" aria-label="取景與播放">
+      <div class="monitor-bar"><strong id="monitor-title">監看畫面</strong><span>16:9 <b>／</b> 720p</span></div>
+      <div class="monitor"><div id="frame" tabindex="0" aria-label="鏡位取景區"><p id="loading" role="status">正在載入船艙…</p></div></div>
+      <div class="transport"><button id="play-shot" disabled>▶ 試播此鏡</button><output id="clock">00:00.00 / 00:30.00</output><label class="composite"><input type="checkbox" id="composite" disabled> 成片圖層</label></div>
+      <section class="timeline" aria-label="影片時間軸"><div class="section-title"><h2>時間軸</h2><span id="shot-count"></span></div>
+        <div id="strips" aria-label="選擇分鏡"></div>
+        <input id="scrub" type="range" min="0" max="30" value="0" step=".01" aria-label="拖曳定位時間" disabled>
+        <div class="ticks"><span>00:00</span><span id="timeline-end">00:30</span></div>
+      </section>
+      <p class="status" id="status" role="status"></p><a id="download" hidden>下載影片</a>
+    </section>
+    <aside aria-label="鏡位編輯">
+      <label for="media-source">畫面來源</label>
+      <select id="media-source" disabled><option value="footage">正式影片 · 真實 App 操作錄影</option><option value="live">即時展示 · 目前醫療讀值</option></select>
+      <p id="footage-note" class="footnote" hidden>正式影片使用真正醫療系統的英文操作錄影，包含訓練任務、人體 3D、AI 問答、引用來源與急救指引。演練資料保留 SIMULATED 標示，不代表目前讀值。</p>
+      <section id="live-health" aria-label="醫療系統即時讀值">
+        <h2>Mira（影片 Timmy）· 即時讀值</h2>
+        <p id="live-connection" role="status">正在連接醫療系統…</p>
+        <dl id="live-readings"></dl>
+        <p id="live-body" class="footnote">Lin · 正在取得最新身體掃描…</p>
+        <p class="footnote">此模式展示目前醫療讀值，不播放正式影片的人體與 AI 操作錄影。拖曳分鏡不會重播舊讀值，角色演出不會觸發醫療警示。</p>
+        <a href="/health/system" target="_blank" rel="noopener">開啟醫療監測站 ↗</a>
+      </section>
+      <div class="section-title"><h2>分鏡</h2><span id="index-label"></span></div>
+      <label class="sr" for="shots">選擇鏡頭</label><select id="shots" disabled></select>
+      <fieldset id="settings" disabled><legend>鏡位設定</legend>
+        <div class="endpoints" aria-label="選擇要調整的鏡位"><button id="start" aria-pressed="true">起點</button><button id="end" aria-pressed="false">終點</button></div>
+        <p class="gesture" id="shot-note">左鍵拖曳環繞，右鍵拖曳平移，滾輪推近或拉遠。放開滑鼠即儲存鏡位。</p>
+        <div class="setting-label"><label for="fov">視角</label><output id="degrees">48°</output></div>
+        <input type="range" id="fov" min="15" max="90" step=".5">
+        <div class="setting-label"><label for="duration">鏡頭長度</label><label class="exact"><input id="seconds" type="number" min=".25" max="60" step=".01" aria-label="精確秒數"> 秒</label></div>
+        <input id="duration" type="range" min=".25" max="10" step=".05">
+        <button id="restore" class="subtle">還原此鏡預設</button>
+      </fieldset>
+      <div class="files"><button id="export" disabled>匯出分鏡檔</button><button id="import" disabled>載入分鏡檔</button><input type="file" accept=".json,application/json" id="file" hidden></div>
+      <small class="footnote">分鏡會儲存在這個瀏覽器。換電腦前可匯出 JSON。</small>
+    </aside>
+  </main>
+  <script type="module">
+    import('./film-editor.js').catch(error => {
+      document.querySelector('#loading').textContent = '無法開啟攝影台。請從船艙伺服器開啟，並確認瀏覽器支援 WebGL 2。';
+      console.error(error);
+    });
+  </script>
+</body>
+</html>

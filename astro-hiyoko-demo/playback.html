@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3D 資料傳送 · Astro Hiyoko</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b141c;color:#e2eeef}
+    body{max-width:760px;margin:6vh auto;padding:24px;line-height:1.7}a{color:#88d9e0}
+    h1{font-size:30px;margin-bottom:8px}small{color:#9db2ba}section{background:#14242d;border:1px solid #30454c;border-radius:12px;padding:24px;margin:24px 0}
+    button{font:inherit;padding:10px 18px;border:0;border-radius:7px;background:#f4c767;color:#15242a;cursor:pointer}button:disabled{opacity:.4;cursor:default}
+    #stop{background:#b6c8d0}progress{width:100%;height:18px}#status{font-weight:600}#error{color:#ffb5ac;white-space:pre-wrap}nav{display:flex;gap:20px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <small>ASTRO HIYOKO / 合成資料試跑</small>
+  <h1>3D 網站 → 醫療系統</h1>
+  <p>每 60 秒循環播放隊友提供的資料，每秒同步傳送五人數據，直到按下「停止傳送」。切換頁面或暫停 3D 動畫，傳送仍會繼續。</p>
+  <nav><a href="/" target="_blank" rel="noopener">開啟 3D 船艙</a><a href="/health/system" target="_blank" rel="noopener">開啟醫療監測站</a></nav>
+  <section>
+    <h2>60 秒資料循環播放</h2>
+    <p id="dataset">正在驗證資料包…</p>
+    <p>依資料包提供的指標與數值播放，未提供的資料不會補造。此即時小樣本不包含七天歷史，以及完整警示、缺值和斷線情境。</p>
+    <p>開始前，請先停止同一醫療系統的其他資料產生器。每輪使用新的量測時間，重複同一段合成數值；已送出的紀錄都會保留。</p>
+    <button id="start" disabled>開始循環播放</button> <button id="stop" disabled>停止傳送</button>
+  </section>
+  <section aria-live="polite">
+    <p id="status">準備中</p><progress id="progress" value="0" max="300"></progress>
+    <p id="counts">0 / 300 筆樣本</p><p id="timing"></p><p id="error"></p>
+    <small>每輪結束會自動接續下一輪，關閉分頁也會繼續傳送。按「停止傳送」或關閉 3D 服務才會停止；停止後約 3 秒讀值過期、約 15 秒裝置離線。</small>
+  </section>
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const names = {idle:'可開始',starting:'驗證與準備傳送',playing:'正在傳送',stopping:'正在停止',completed:'傳送完成',failed:'試跑失敗',stopped:'已停止',unavailable:'資料包無法使用'};
+    let polling = false;
+    let controlling = false;
+    let revision = 0;
+    async function update(action) {
+      if (!action && (polling || controlling) || action && controlling) return;
+      const requestRevision = action ? ++revision : revision;
+      if (action) {
+        controlling = true;
+        $('start').disabled = true;
+        $('stop').disabled = true;
+      } else polling = true;
+      try {
+        const reply = await fetch('/api/playback' + (action ? '/' + action : ''), action ? {method:'POST',headers:{'X-Ship-Playback':'1'}} : {});
+        const data = await reply.json();
+        if (requestRevision !== revision) return;
+        if (!reply.ok) throw new Error(data.error || '無法取得播放狀態');
+        $('error').textContent = data.error || data.timingWarning || '';
+        const running = ['starting','playing','stopping'].includes(data.status);
+        $('start').disabled = running;
+        $('stop').disabled = !running;
+        $('status').textContent = names[data.status] || data.status;
+        $('progress').max = data.dataset.sampleCount;
+        $('progress').value = data.accepted;
+        $('counts').textContent = `第 ${data.cycle || 1} 輪 · 本輪 ${data.accepted} / ${data.dataset.sampleCount} 筆樣本 · 累計 ${data.totalAccepted || 0} 筆樣本、${data.totalAcceptedMetrics || 0} 個量測值`;
+        $('dataset').textContent = `${data.dataset.datasetVersion} · schema ${data.dataset.telemetrySchemaVersion} · 每輪 ${data.dataset.sampleCount} 筆樣本、${data.dataset.metricCount} 個量測值 · ${data.dataset.hashesVerified} 個檔案雜湊驗證通過`;
+        $('timing').textContent = data.maxLatencyMs !== undefined ? `最近完成一輪的最長延遲 ${data.maxLatencyMs} ms · P95 ${data.p95LatencyMs} ms` : '';
+      } catch (error) {
+        if (requestRevision === revision) $('error').textContent = error.message;
+      } finally {
+        if (action) controlling = false;
+        else polling = false;
+      }
+    }
+    $('start').onclick = () => update('start');
+    $('stop').onclick = () => update('stop');
+    update();
+    setInterval(() => update(), 1000);
+  </script>
+</body>
+</html>

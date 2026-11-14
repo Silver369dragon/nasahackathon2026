@@ -42,7 +42,7 @@ function paintWall(screen, state) {
   texture.needsUpdate = true;
 }
 
-export function startHealthStations(screen, onReady) {
+export function startHealthStations(screen, onReady, onState = _state => {}) {
   let state = { status: 'syncing', syncedAt: null, rows: [], emergency: null };
   let frame, timer, watchdog, stopped = false, preparing = false;
   let version = '';
@@ -54,7 +54,8 @@ export function startHealthStations(screen, onReady) {
     else if (paintedEvent?.id !== notice.id)
       paintedEvent = { id: notice.id, createdAt: notice.createdAt, paintedAt: Date.now() };
   };
-  paintWall(screen, state);
+  const paint = () => { paintWall(screen, state); onState(state); };
+  paint();
   const later = (fn, ms) => {
     clearTimeout(timer);
     if (!stopped) timer = setTimeout(fn, ms);
@@ -62,7 +63,7 @@ export function startHealthStations(screen, onReady) {
   function offline() {
     state = { ...state, status: 'offline' };
     version = '';
-    paintWall(screen, state);
+    paint();
   }
   function mountFeed() {
     if (stopped) return;
@@ -114,7 +115,7 @@ export function startHealthStations(screen, onReady) {
     if (nextVersion === version) return;
     version = nextVersion;
     state = next;
-    paintWall(screen, state);
+    paint();
   }
   const resume = e => { if (e.persisted) { stopped = false; void prepare(); } };
   window.addEventListener('message', receive);

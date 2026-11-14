@@ -20,7 +20,7 @@ export const contexts = {
 }
 
 export function makeCommand(metric: Metric, crewId: string, draft: Draft, uid: () => string) {
-  const unit = metric.code === 'temperature' ? 'Cel' : metric.unit
+  const unit = { heart_rate: '/min', spo2: '%', blood_pressure: 'mm[Hg]', temperature: 'Cel' }[metric.code]
   const entries = metric.fields.map((code, index) => {
     const raw = draft.values[index]?.trim()
     const value = raw ? Number(raw) : null
@@ -35,7 +35,7 @@ export function makeCommand(metric: Metric, crewId: string, draft: Draft, uid: (
   const observed = new Date(draft.time)
   if (!Number.isFinite(observed.getTime())) throw new Error('invalid_time')
   return {
-    schemaVersion: '1.2',
+    schemaVersion: '1.3',
     runId: null,
     crewId,
     commandId: uid(),

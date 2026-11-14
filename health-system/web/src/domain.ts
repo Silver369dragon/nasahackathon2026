@@ -8,15 +8,25 @@ export type Session = {
   mode?: string
 }
 export type Quality = 'good' | 'poor' | 'invalid' | 'missing'
+export type WorkOfBreathing = {
+  dyspnea?: string | null
+  accessoryMuscleUse?: boolean | null
+  speakingAbility?: string | null
+  scaleId?: string | null
+  scaleVersion?: string | null
+  score?: number | null
+  notes?: string | null
+}
+export type MeasurementContext = Record<string, string | number | boolean | null>
 export type Measurement = {
   id: string
   metricCode: string
-  value: number | null
+  value: number | WorkOfBreathing | null
   unit: string
   observedAt: string
   receivedAt?: string
   method: string
-  context: Record<string, string | null>
+  context: MeasurementContext
   provenance: { source: string; isSynthetic: boolean; dataOrigin?: string }
   quality: Quality
   qualityReason?: string | null
@@ -72,15 +82,48 @@ export const metrics = [
   { code: 'temperature', en: 'Body temperature', zh: '體溫', unit: '°C', fields: ['temperature'] },
 ] as const
 export type Metric = (typeof metrics)[number]
+export const monitoringMetrics = [
+  ...metrics,
+  { code: 'respiratory_rate', en: 'Respiratory rate', zh: '呼吸頻率', unit: '/min', fields: ['respiratory_rate'] },
+  { code: 'work_of_breathing', en: 'Work of breathing', zh: '呼吸費力程度', unit: '', fields: ['work_of_breathing'] },
+] as const
+export type MonitoringMetric = (typeof monitoringMetrics)[number]
 export const tx = (lang: Lang, en: string, zh: string) => (lang === 'en' ? en : zh)
 
-export function prettyValue(record: Measurement | null, showPoor = false): string {
+export function displayUnit(unit: string, metricCode?: string): string {
+  if (unit === '/min' && metricCode === 'heart_rate') return 'bpm'
+  if (unit === 'mm[Hg]') return 'mmHg'
+  if (unit === 'Cel') return '°C'
+  if (unit === '1' && metricCode === 'work_of_breathing') return ''
+  return unit
+}
+
+export function workOfBreathingFields(value: WorkOfBreathing, lang: Lang): [string, string][] {
+  const names: [keyof WorkOfBreathing, string, string][] = [
+    ['dyspnea', 'Dyspnea', '呼吸困難'],
+    ['accessoryMuscleUse', 'Accessory muscle use', '輔助呼吸肌使用'],
+    ['speakingAbility', 'Speaking ability', '說話能力'],
+    ['scaleId', 'Scale ID', '量表識別'],
+    ['scaleVersion', 'Scale version', '量表版本'],
+    ['score', 'Score', '分數'],
+    ['notes', 'Notes', '備註'],
+  ]
+  return names.flatMap(([key, en, zh]): [string, string][] => {
+    const item = value[key]
+    if (item == null) return []
+    const text = typeof item === 'boolean' ? tx(lang, item ? 'Yes' : 'No', item ? '是' : '否') : String(item)
+    return [[tx(lang, en, zh), text]]
+  })
+}
+
+export function prettyValue(record: Measurement | null, showPoor = false, lang: Lang = 'en'): string {
   if (!record || record.value === null || (!showPoor && record.quality !== 'good')) return '—'
+  if (typeof record.value === 'object') return tx(lang, 'Recorded', '已記錄')
   return record.value.toFixed(record.metricCode === 'temperature' ? 1 : 0)
 }
 
 // Each displayed BP pair belongs to one observation, including partial observations.
-export function selectReadings(cards: MetricCard[], metric: Metric, key: 'latest' | 'lastValid') {
+export function selectReadings(cards: MetricCard[], metric: MonitoringMetric, key: 'latest' | 'lastValid') {
   const rows = metric.fields.map((code) => cards.find((row) => row.metricCode === code)?.[key] ?? null)
   if (rows.length === 1) return rows
   const newest = [...rows].sort(

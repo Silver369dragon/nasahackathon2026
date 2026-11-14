@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 from fastapi import FastAPI, Query, Request
 from pydantic import AwareDatetime
 
-from .models import CONTEXT_REQUIRED, MetricCode, utc_text
+from .models import CONTEXT_REQUIRED, MetricCode, canonical_measurement, utc_text
 from .store import Data, Problem, connection
 
 
@@ -25,7 +25,7 @@ def readings(db: sqlite3.Connection, crew: str, metric: str, start: datetime, en
     rows = db.execute("""SELECT document FROM measurements WHERE crew_id=? AND metric=?
                          AND observed>=? AND observed<? ORDER BY observed,row_id""",
                       (crew, metric, utc_text(start), utc_text(end)))
-    documents = (json.loads(row[0]) for row in rows)
+    documents = (canonical_measurement(json.loads(row[0])) for row in rows)
     for _, bucket in groupby(documents, lambda doc: doc["observedAt"][:19]):
         # Preserve manual ordering. For a continuous series, use one representative per UTC second.
         continuous: dict[tuple, Data] = {}
@@ -103,6 +103,10 @@ class Series:
 
 
 def personal_trends(db: sqlite3.Connection, crew: str, metric: str, start: datetime, end: datetime) -> Data:
+    if metric == "work_of_breathing":
+        raise Problem(422, "NON_NUMERIC_METRIC",
+                      "Work-of-breathing records are available in measurement history; "
+                      "numeric trends require a confirmed scale.")
     baseline_start = start - timedelta(days=7)
     baseline: dict[tuple, Reference] = {}
     for key, doc in readings(db, crew, metric, baseline_start, start):

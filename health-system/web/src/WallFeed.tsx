@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { metrics, prettyValue, selectReadings } from './domain'
+import { metrics, monitoringMetrics, prettyValue, selectReadings } from './domain'
 import { useFeed } from './useFeed'
 
 const ignoreNotice = () => {}
@@ -15,6 +15,18 @@ export function WallFeed() {
     type: 'ship-wall-feed', status: feed.status, syncedAt: feed.syncedAt,
     rows: feed.rows.map(crew => ({
       name: crew.name, crewId: crew.crewId,
+      readings: monitoringMetrics.map(metric => {
+        const records = selectReadings(crew.metricCards, metric, 'latest')
+        const record = records.find(r => r !== null)
+        const issue = records.find(r => r && r.quality !== 'good')
+        return {
+          code: metric.code, name: metric.en, label: metric.zh, unit: metric.unit,
+          value: records.map(r => prettyValue(r)).join(' / '),
+          observedAt: record?.observedAt ?? null,
+          status: issue?.quality ?? crew.metricCards.find(c => c.metricCode === record?.metricCode)?.freshness ?? 'no_data',
+          synthetic: record?.provenance.isSynthetic ?? false,
+        }
+      }),
       values: metrics.map(metric => {
         const readings = selectReadings(crew.metricCards, metric, 'latest')
         const value = readings.map(r => prettyValue(r)).join('/')

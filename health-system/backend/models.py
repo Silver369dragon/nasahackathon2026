@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -16,11 +17,27 @@ from pydantic import (
 )
 
 Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=180)]
-MetricCode = Literal["heart_rate", "spo2", "blood_pressure_systolic", "blood_pressure_diastolic", "temperature"]
+MetricCode = Literal["heart_rate", "spo2", "blood_pressure_systolic", "blood_pressure_diastolic",
+                     "temperature", "respiratory_rate", "work_of_breathing"]
+InputMetricCode = MetricCode | Literal["respiration_rate"]
+Context = dict[str, Identifier | StrictFloat | StrictBool | None]
 View = Literal["personal", "system", "system_display"]
 BP = ("blood_pressure_systolic", "blood_pressure_diastolic")
-UNITS = {"heart_rate": "bpm", "spo2": "%", **dict.fromkeys(BP, "mmHg"), "temperature": "Cel"}
+LEGACY_UNITS = {"heart_rate": "bpm", "spo2": "%", **dict.fromkeys(BP, "mmHg"), "temperature": "Cel"}
+UNITS = {**LEGACY_UNITS, "heart_rate": "/min", **dict.fromkeys(BP, "mm[Hg]"),
+         "respiratory_rate": "/min", "work_of_breathing": "1"}
+
+
+def canonical_code(code: str) -> str:
+    return "respiratory_rate" if code == "respiration_rate" else code
+
+
+def canonical_measurement(document: dict) -> dict:
+    code = canonical_code(document["metricCode"])
+    return {**document, "metricCode": code, "unit": UNITS.get(code, document["unit"]),
+            "schemaVersion": "1.3"}
 CONTEXT_REQUIRED = {
+    "respiratory_rate": ("observationDuration",), "work_of_breathing": (),
     "heart_rate": ("activity",), "spo2": ("measurementSite",),
     **dict.fromkeys(BP, ("posture",)), "temperature": ("measurementSite", "temperatureType"),
 }
@@ -39,21 +56,43 @@ class Login(Contract):
     password: Annotated[StrictStr, Field(max_length=1024)]
 
 
+class WorkOfBreathing(Contract):
+    dyspnea: Identifier | None = None
+    accessoryMuscleUse: StrictBool | None = None
+    speakingAbility: Identifier | None = None
+    scaleId: Identifier | None = None
+    scaleVersion: Identifier | None = None
+    score: StrictFloat | None = None
+    notes: Identifier | None = None
+
+    @model_validator(mode="after")
+    def validate_record(self):
+        if not any(value is not None for value in
+                   (self.dyspnea, self.accessoryMuscleUse, self.speakingAbility, self.score, self.notes)):
+            raise ValueError("Work of breathing requires an observation or score")
+        if self.score is not None and not (self.scaleId and self.scaleVersion):
+            raise ValueError("A score requires scaleId and scaleVersion; clinical interpretation is not enabled")
+        if bool(self.scaleId) != bool(self.scaleVersion):
+            raise ValueError("scaleId and scaleVersion must be supplied together")
+        return self
+
+
 class Metric(Contract):
-    code: MetricCode
-    value: StrictFloat | None
+    code: InputMetricCode
+    value: StrictFloat | WorkOfBreathing | None
     unit: Identifier
     quality: Literal["good", "poor", "invalid", "missing"]
     qualityReason: Identifier | None = None
     missingReason: Identifier | None = None
     method: Identifier | None = None
-    context: dict[str, Identifier | bool | None] = Field(default_factory=dict)
+    context: Context = Field(default_factory=dict)
     measurementGroupId: Identifier | None = None
 
     @model_validator(mode="after")
     def validate_value(self):
-        if self.unit != UNITS[self.code]:
-            raise ValueError(f"{self.code} requires unit {UNITS[self.code]}")
+        code = canonical_code(self.code)
+        if self.unit not in (UNITS[code], LEGACY_UNITS.get(code)):
+            raise ValueError(f"{code} requires unit {UNITS[code]}")
         if self.quality == "missing":
             if self.value is not None or not (self.qualityReason or self.missingReason):
                 raise ValueError("missing requires a null value and a reason")
@@ -62,15 +101,21 @@ class Metric(Contract):
             raise ValueError("A null value requires missing quality")
         if self.quality in ("poor", "invalid") and not self.qualityReason:
             raise ValueError("Poor or invalid data requires a qualityReason")
-        if self.code == "spo2" and not 0 <= self.value <= 100:
+        if code == "work_of_breathing":
+            if not isinstance(self.value, WorkOfBreathing):
+                raise ValueError("work_of_breathing requires a structured record")
+            return self
+        if isinstance(self.value, WorkOfBreathing):
+            raise ValueError("Numeric metrics require a number")  # noqa: TRY004 (Pydantic validation)
+        if code == "spo2" and not 0 <= self.value <= 100:
             raise ValueError("Percentage must be between 0 and 100")
-        if self.code in ("heart_rate", *BP) and self.value < 0:
+        if code in ("heart_rate", "respiratory_rate", *BP) and self.value < 0:
             raise ValueError("Value must be nonnegative")
         return self
 
 
 class Batch(Contract):
-    schemaVersion: Literal["1.2"]
+    schemaVersion: Literal["1.2", "1.3"]
     runId: Identifier | None = None
     observedAt: AwareDatetime
     isSynthetic: Literal[True]
@@ -100,7 +145,12 @@ class Batch(Contract):
 
     @model_validator(mode="after")
     def validate_group(self):
-        codes = [m.code for m in self.metrics]
+        for metric in self.metrics:
+            units = LEGACY_UNITS if self.schemaVersion == "1.2" else UNITS
+            code = metric.code if self.schemaVersion == "1.2" else canonical_code(metric.code)
+            if code not in units or metric.unit != units[code]:
+                raise ValueError(f"schema {self.schemaVersion} requires supported codes and units: {units}")
+        codes = [canonical_code(m.code) for m in self.metrics]
         if len(set(codes)) != len(codes):
             raise ValueError("Metric codes must be unique within a packet")
         bp = [m for m in self.metrics if m.code in BP]
@@ -118,7 +168,7 @@ class ManualBatch(Batch):
     commandId: Identifier
     crewId: Identifier
     method: Identifier
-    context: dict[str, Identifier | bool | None]
+    context: Context
 
     @model_validator(mode="after")
     def validate_manual_context(self):
@@ -159,7 +209,13 @@ class Telemetry(Batch):
         return self
 
 
-def check_context(code: str, context: dict[str, str | bool | None]) -> None:
+def check_context(code: str, context: Context) -> None:
+    code = canonical_code(code)
+    if code == "respiratory_rate":
+        duration = context.get("observationDuration")
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or duration <= 0:
+            raise ValueError("respiratory_rate requires a positive numeric context.observationDuration in seconds")
+        return
     for key in CONTEXT_REQUIRED[code]:
         if not isinstance(context.get(key), str) or not context[key]:
             raise ValueError(f"{code} requires context.{key}")

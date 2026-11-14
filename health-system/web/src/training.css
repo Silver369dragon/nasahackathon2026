@@ -52,10 +52,36 @@
 .training-reminders h2 { font-size: 16px; }
 .training-reminders li { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; }
 .training-reminders .secondary { min-height: 32px; padding: 5px 8px; font-size: 12px; }
+.task-progress-overview { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 17px; margin: 12px 0; padding: 14px; background: var(--dark); color: #f6f8ee; border-radius: 11px; }
+.task-progress-ring { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#c7e58d var(--progress), #45625a 0); position: relative; }
+.task-progress-ring::before { content: ''; position: absolute; inset: 7px; background: var(--dark); border-radius: 50%; }
+.task-progress-ring strong { position: relative; font: 32px var(--mono); }
+.task-progress-ring small { font-size: 15px; color: #c5d0ca; }
+.task-progress-overview h3 { font-size: 24px; }
+.task-progress-overview p { font-size: 13px; color: #c5d0ca; margin-top: 5px; }
+.task-badge-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; width: 100%; margin: 0; padding: 10px 0 0; list-style: none; border-top: 1px solid #45625a; }
+.task-badge-summary li { display: flex; align-items: center; gap: 7px; min-width: 0; color: #b7c9bf; }
+.task-badge-summary .earned { color: #d7ee9e; }
+.task-badge-emblem { display: grid; place-items: center; position: relative; width: 30px; height: 32px; flex: 0 0 30px; background: #29493e; border: 1px solid #53725e; border-radius: 7px; }
+.earned .task-badge-emblem { background: #385c2f; border-color: #bfdc83; }
+.task-badge-emblem > svg:last-child:not(:first-child) { position: absolute; bottom: 1px; right: 1px; background: #29493e; border-radius: 2px; }
+.task-badge-summary strong, .task-badge-summary small { display: block; }
+.task-badge-summary strong { font-size: 12px; font-weight: 600; }
+.task-badge-summary small { margin-top: 2px; font-size: 9px; }
+.task-details > summary { color: var(--accent); font-size: 13px; margin-bottom: 10px; cursor: pointer; }
+.training-clock { color: var(--accent); }
+.training-clock span { font-size: 46px; margin-left: auto; }
+.training-symbol { width: 35px; height: 35px; border-radius: 8px; background: #e4efdc; }
+.training-due summary { cursor: pointer; }
 @media(max-width: 900px) {
   .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
 }
 @media(max-width: 650px) {
+  .task-progress-ring { width: 60px; height: 60px; flex: 0 0 60px; }
+  .task-progress-ring strong { font-size: 28px; }
+  .task-progress-overview { padding: 11px 13px; margin: 10px 0; }
+  .task-progress-overview h3 { font-size: 22px; }
+  .task-progress-overview p { font-size: 12px; margin-top: 3px; }
   .training-grid, .training-progress { grid-template-columns: 1fr; }
   .training-task, .training-progress > section { padding: 12px; }
   .training-reminders li { flex-wrap: wrap; }

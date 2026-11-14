@@ -1,6 +1,7 @@
 // Presentation-only localization. Simulation identifiers and numerical state stay unchanged.
 export let language='en';
 const words={
+ 'Camera studio':'拍攝模式',
  'Each crew device starts signed in. Live readings and the latest emergency appear on the commons wall. Click it for the full board.':'各船員的手機已各自登入，公共區牆面會顯示最新量測及緊急通知。點牆面即可開啟完整看板。',
  'Preparing device sign-in. Check the health service connection.':'正在準備裝置登入，請確認醫療服務已啟動。','Preparing devices':'正在登入裝置',
  'HR bpm':'心率 bpm','SpO₂ %':'血氧 %','BP mmHg':'血壓 mmHg','Temp °C':'體溫 °C','* Stale reading':'* 量測已過期',

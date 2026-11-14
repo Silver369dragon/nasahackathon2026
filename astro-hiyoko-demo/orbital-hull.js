@@ -5,9 +5,12 @@ export function buildOrbitalHull(root,roof,scale){
  const dark=new THREE.MeshStandardMaterial({color:'#273b48',roughness:.5,metalness:.5});
  const trim=new THREE.MeshStandardMaterial({color:'#aab8bd',roughness:.4,metalness:.65});
  const glass=new THREE.MeshBasicMaterial({color:'#8bcbd5',transparent:true,opacity:.045,depthWrite:false,side:THREE.DoubleSide});
- const ports=[...[-14,-4,6,-14,-4].map((x,i)=>({id:`room-${i}`,x,side:i<3?-1:1,width:3.4,span:.58})),{id:'common',x:22.6,side:1,width:5.2,span:.62},{id:'training',x:15.3,side:1,width:8.8,span:.9}];
+ const portLayouts=[...[-14,-4,6,-14,-4].map((x,i)=>({id:`room-${i}`,x,side:i<3?-1:1,width:3.4,span:.58})),{id:'common',x:22.6,side:1,width:5.2,span:.62},{id:'training',x:15.3,side:1,width:8.8,span:.9}];
  const point=(x,a)=>new THREE.Vector3(x,.05+Math.sin(a)*(Math.sin(a)>=0?6.1:5.2),Math.cos(a)*9.7);
- ports.forEach(p=>{p.angle=p.side>0?.18:Math.PI-.18;p.center=point(p.x,p.angle);});
+ const ports=portLayouts.map(port=>{
+   const angle=port.side>0?.18:Math.PI-.18;
+   return {...port,angle,center:point(port.x,angle)};
+ });
  const xs=[-30,30,...Array.from({length:31},(_,i)=>-30+i*2),...ports.flatMap(p=>[p.x-p.width/2,p.x+p.width/2])].sort((a,b)=>a-b).filter((v,i,a)=>!i||v!==a[i-1]);
  const angles=[...Array.from({length:129},(_,i)=>-.5+i*Math.PI/64),...ports.flatMap(p=>[p.angle-p.span/2,p.angle+p.span/2])].sort((a,b)=>a-b);
  const cuts=[];

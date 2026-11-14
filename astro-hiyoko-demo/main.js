@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {buildShip} from './ship.js';
 import {crew as simulatedCrew,readings,stageAt} from './simulation.mjs';
-import {startHealthStations} from './health-wall.js';
+import {loadFilmMedia} from './film-media.js';
+import {addFilmSet} from './film-set.js';
+import {createFilmActors} from './film-actors.js';
 import {routineAt} from './routines.mjs';
 import {scenarioReadings} from './scenarios.mjs';
 import {SHIP_SCALE,EYE_HEIGHT,stationCrew} from './config.mjs';
@@ -21,6 +23,9 @@ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(68,1,.08,1400);
 scene.add(new THREE.HemisphereLight(0xd8efff,0x30353a,1.55));const key=new THREE.DirectionalLight(0xffe3b3,2.1);key.position.set(-8,20,12);scene.add(key);const fill=new THREE.DirectionalLight(0xa8c9da,.85);fill.position.set(10,10,-8);scene.add(fill);
 scene.add(new THREE.AmbientLight(0xb5cad0,.65));
 const ship=buildShip(crew),zones=ship.zones;scene.add(ship.root);const orbit=createOrbit(scene);orbit.update(0);
+const equipment = addFilmSet(scene, ship, {scripted:false});
+const crewModels = createFilmActors(ship, {scripted:false, names:crew.map(person => person.name.toUpperCase())});
+equipment.setVisible(true);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=false;controls.enableDamping=false;controls.enablePan=true;controls.screenSpacePanning=true;controls.minDistance=5;controls.maxDistance=800;controls.maxPolarAngle=Math.PI*.94;controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
 let mode='interior',yaw=Math.PI/2,pitch=0,time=Math.max(0,Number(new URLSearchParams(location.search).get('crewPreview'))||0),paused=false,speed=1,eventStart=null,acknowledged=false,selected=0,modalType='',labelsOn=false;
 let data=[],activities=[],frame=0,incident=null,eventCounter=0,orbitTime=Math.max(0,Math.min(1200,Number(new URLSearchParams(location.search).get("orbitPreview"))||0));
@@ -87,7 +92,7 @@ function updateData(){
   const raw=readings(time,false).map((c,i)=>({...c,heart:c.heart+(activities[i].activity.includes('training')?22:activities[i].moving?8:0),activity:activities[i].activity,next:activities[i].next,sequence:Math.floor(time),timestamp:time}));data=scenarioReadings(raw,incident);const step=eventStart===null?-1:stageAt(time-eventStart);const name=incident?(incident.type==='radiation'?'Ship-wide':crew[incident.crewId].name):'';$('#event-status').textContent=step<0?'Ready for a simulated scenario':acknowledged?'Acknowledged; simulated event remains active until reset.':[`${name}：${scenarioName(incident.type)+' (scripted)'}`,'Crew device: same simulated event','Shared display: team event visible','Awaiting review: acknowledge on the shared display','Awaiting review: acknowledge on the shared display'][step];$('#incident-banner').hidden=!incident;$('#incident-banner').textContent=incident?`Simulated ${scenarioName(incident.type)} · ${name} · ${acknowledged?'Reviewed':'Awaiting review'} · F controls`:'';drawScreens();if(modal.open)refreshModal();}
 function drawScreens(){const x=ship.shared.ctx;x.fillStyle='#10232b';x.fillRect(0,0,1024,512);x.fillStyle='#f6c85b';x.font='25px monospace';x.fillText('HIYOKO / CREW HEALTH',35,48);x.font='18px monospace';x.fillText('SIMULATION ONLY',755,48);data.forEach((c,i)=>{const y=108+i*74;x.fillStyle=c.flag?'#4b3827':'#1d343e';x.fillRect(25,y-28,974,62);x.fillStyle=c.color;x.font='26px monospace';x.fillText(c.name,45,y+10);x.fillStyle='#e1efee';x.fillText(`${c.heart??"--"} BPM`,310,y+10);x.fillText(`${c.oxygen??"--"}%`,550,y+10);x.fillText(c.flag?(c.dataQuality==='missing'?'OFFLINE':c.environmentalWarning?'ENV / SIM':c.fallDetected?'FALL / SIM':'CHECK IN'):'SIMULATED',750,y+10);const d=ship.devices[i],ctx=d.ctx;ctx.fillStyle='#132d37';ctx.fillRect(0,0,256,384);ctx.fillStyle=c.color;ctx.font='28px monospace';ctx.fillText(c.name,20,48);ctx.font='68px monospace';ctx.fillText(String(c.heart??"--"),20,155);ctx.font='24px monospace';ctx.fillText('BPM / SIM',20,199);ctx.fillText(`${c.oxygen??"--"}% O2`,20,250);ctx.fillText(c.flag?(c.dataQuality==='missing'?'OFFLINE':c.environmentalWarning?'ENV / SIM':c.fallDetected?'FALL / SIM':'CHECK IN'):'SIMULATED',20,330);d.texture.needsUpdate=true;});ship.shared.texture.needsUpdate=true;}
 const wave=`<svg class="spark" viewBox="0 0 260 45" aria-label="Decorative simulated waveform"><path d="M0 26H25l5 -5 5 5h15l4 8 6 -29 6 21h25l5 -5 5 5h22l4 8 6 -29 6 21h25l5 -5 5 5h23l4 8 6 -29 6 21h26" fill="none" stroke="#91d6c1" stroke-width="1.5"/></svg>`;
-function openModal(type, id = selected) {
+function openModal(type, id = selected, route = '/app') {
   keys.clear();
   stopMotion();
   selected = id;
@@ -109,7 +114,7 @@ function openModal(type, id = selected) {
     }
     const frame = document.createElement('iframe');
     frame.title = title;
-    frame.src = phone ? '/stations/' + crew[id].id + '/app' : '/stations/display/board';
+    frame.src = phone ? '/stations/' + crew[id].id + route : '/stations/display/board';
     frame.allowFullscreen = !phone;
     $('#modal-body').replaceChildren(frame);
     if (!modal.open) modal.showModal();
@@ -127,10 +132,21 @@ const keys=new Set();window.addEventListener('keydown',e=>{if(simulationMode&&e.
 });
 function translate(forward,right){camera.position.x+=Math.sin(yaw)*forward-Math.cos(yaw)*right;camera.position.z+=Math.cos(yaw)*forward+Math.sin(yaw)*right;look();}
 let down=null;const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();const canvas=renderer.domElement;
-function hitAt(e){const r=canvas.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObject(ship.root,true);return hits.find(h=>h.object.visible&&h.object.parent?.visible);}
+function hitAt(e) {
+  const r = canvas.getBoundingClientRect();
+  pointer.set((e.clientX-r.left)/r.width*2-1, -(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(pointer, camera);
+  const hits = ray.intersectObject(ship.root, true).filter(hit => {
+    if (!hit.object.isMesh && !hit.object.isSprite) return false;
+    for (let object = hit.object; object; object = object.parent) if (!object.visible) return false;
+    return true;
+  });
+  // Area labels render over the hull, so their click targets must do the same.
+  return hits.find(hit => hit.object.isSprite && hit.object.userData.kind === 'zone') || hits[0];
+}
 canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,button:e.button,moved:false};canvas.focus({preventScroll:true});if(mode==='interior')canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{if(down){const dx=e.clientX-down.lastX,dy=e.clientY-down.lastY;down.lastX=e.clientX;down.lastY=e.clientY;if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)down.moved=true;if(mode==='interior'){if(down.button===0){yaw-=dx*.004;pitch=THREE.MathUtils.clamp(pitch-dy*.004,-1.2,1.2);look();}else if(down.button===2){panQueue.forward+=dy*.035;panQueue.right-=dx*.035;}}$('#hover-tip').hidden=true;}else{const h=hitAt(e),kind=h?.object.userData.kind;const clickable=['crew','phone','shared','zone','window'].includes(kind);canvas.style.cursor=clickable?'pointer':'grab';const tip=$('#hover-tip');tip.hidden=!clickable;if(clickable){tip.textContent=kind==='window'?'View Earth through this window':kind==='shared'?'Click to enlarge shared display':kind==='zone'?'Go to this area':`Open ${crew[h.object.userData.id].name} phone`;tip.style.left=Math.min(innerWidth-180,e.clientX+14)+'px';tip.style.top=Math.max(10,e.clientY-35)+'px';}}});
-canvas.addEventListener('pointerup',e=>{if(down&&!down.moved&&down.button===0){const h=hitAt(e);if(h){const {kind,id}=h.object.userData;if(kind==='shared')openModal('shared');else if(kind==='crew'||kind==='phone')openModal('phone',id);else if(kind==='zone')enterZone(id);else if(kind==='window')viewWindow(id);}}down=null;});canvas.addEventListener('pointercancel',()=>down=null);
+canvas.addEventListener('pointerup',e=>{if(down&&!down.moved&&down.button===0){const h=hitAt(e);if(h){const {kind,id,route}=h.object.userData;if(kind==='shared')openModal('shared');else if(kind==='crew'||kind==='phone')openModal('phone',id,route);else if(kind==='zone')enterZone(id);else if(kind==='window')viewWindow(id);}}down=null;});canvas.addEventListener('pointercancel',()=>down=null);
 canvas.addEventListener('wheel',e=>{if(mode==='interior'){e.preventDefault();panQueue.forward-=Math.sign(e.deltaY)*1.5;}},{passive:false});
 new ResizeObserver(()=>{const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}).observe(viewport);
 function drawHealthEntrances() {
@@ -154,18 +170,32 @@ function drawHealthEntrances() {
 }
 const modeLink = $('#health-mode-link');
 if (simulationMode) {
+  const textures = {board:ship.shared.texture, boardNormal:ship.shared.texture,
+    phone:ship.devices[2].texture, phoneNormal:ship.devices[2].texture,
+    taskPhone:ship.devices[3].texture, taskPhoneReady:ship.devices[3].texture, bodyMap:null, sensor:null};
+  equipment.setMedicalTextures(textures);
+  crewModels.setMedicalTextures(textures);
+  $('#film-link').href = './film.html?from=simulation';
   modeLink.href = './';
   modeLink.textContent = 'Open health system mode';
 } else {
   drawHealthEntrances();
-  wallEmergency = startHealthStations(ship.shared, ready => {
+  void loadFilmMedia(undefined, {wall:ship.shared, audio:false, onReady:ready => {
     stationsReady = ready;
     $('#crew-select').disabled = !ready;
     $('.sim-dot').textContent = ready ? 'Health system' : 'Preparing devices';
     if (ready && modal.open && modalType === 'health' && !$('#modal-body iframe')) {
       openModal(modal.classList.contains('phone-modal') ? 'phone' : 'shared');
     }
-  });
+  }}).then(media => {
+    wallEmergency = media.wallEmergency;
+    equipment.setMedicalTextures(media.textures);
+    crewModels.setMedicalTextures(media.textures);
+    ship.people.forEach((person, i) => {
+      person.phone.material.map = media.textures.crewPhones[crew[i].id];
+      person.phone.material.needsUpdate = true;
+    });
+  }).catch(error => { caption('Medical displays unavailable', error.message); });
   $('#crew-select').disabled = true;
   for (const id of ['scenario-open', 'event', 'event-status']) $('#' + id).hidden = true;
   $('.sim-dot').textContent = 'Preparing devices';
@@ -173,8 +203,8 @@ if (simulationMode) {
   $('#device-hint').textContent = 'Click a device to open the health system';
 }
 $('#language').onchange=e=>{setLanguage(e.target.value);updateData();};localizeDOM();
-resetView();updatePeople();updateData();$('#loading').remove();let last=performance.now(),acc=0;
-function animate(now){requestAnimationFrame(animate);const elapsed=Math.max(0,Math.min((now-last)/1000,.5)),dt=Math.min(elapsed,.1);last=now;if(document.hidden)return;orbitTime+=elapsed;if(!paused){time+=elapsed*speed;acc+=elapsed*speed;updatePeople(dt);}if(mode==='interior'&&!modal.open){const f=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0),r=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),u=(keys.has('e')?1:0)-(keys.has('q')?1:0);const norm=Math.max(1,Math.hypot(f,r)),blend=1-Math.exp(-14*dt);velocity.forward+=(f*5/norm-velocity.forward)*blend;velocity.right+=(r*5/norm-velocity.right)*blend;velocity.up+=(u*4-velocity.up)*blend;const panBlend=1-Math.exp(-18*dt),pf=panQueue.forward*panBlend,pr=panQueue.right*panBlend;panQueue.forward-=pf;panQueue.right-=pr;translate(velocity.forward*dt+pf,velocity.right*dt+pr);camera.position.y+=velocity.up*dt;look();}if(acc>=1){acc=0;updateData();}if(mode==='exterior')controls.update();orbit.update(orbitTime);starfield.quaternion.copy(orbit.skyAttitude());if (!(modal.open && modalType === 'health')) renderer.render(scene,camera);drawConversation(now);frame++;}requestAnimationFrame(animate);
+resetView();updatePeople();crewModels.update();equipment.update(0);updateData();$('#loading').remove();let last=performance.now(),acc=0;
+function animate(now){requestAnimationFrame(animate);const elapsed=Math.max(0,Math.min((now-last)/1000,.5)),dt=Math.min(elapsed,.1);last=now;if(document.hidden)return;orbitTime+=elapsed;if(!paused){time+=elapsed*speed;acc+=elapsed*speed;updatePeople(dt);crewModels.update();equipment.update(0);}if(mode==='interior'&&!modal.open){const f=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0),r=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),u=(keys.has('e')?1:0)-(keys.has('q')?1:0);const norm=Math.max(1,Math.hypot(f,r)),blend=1-Math.exp(-14*dt);velocity.forward+=(f*5/norm-velocity.forward)*blend;velocity.right+=(r*5/norm-velocity.right)*blend;velocity.up+=(u*4-velocity.up)*blend;const panBlend=1-Math.exp(-18*dt),pf=panQueue.forward*panBlend,pr=panQueue.right*panBlend;panQueue.forward-=pf;panQueue.right-=pr;translate(velocity.forward*dt+pf,velocity.right*dt+pr);camera.position.y+=velocity.up*dt;look();}if(acc>=1){acc=0;updateData();}if(mode==='exterior')controls.update();orbit.update(orbitTime);starfield.quaternion.copy(orbit.skyAttitude());if (!(modal.open && modalType === 'health')) renderer.render(scene,camera);drawConversation(now);frame++;}requestAnimationFrame(animate);
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();caption('3D rendering interrupted','Reload to restore WebGL');});
 function screenPosition(object){const p=object.getWorldPosition(new THREE.Vector3()).project(camera);return{x:(p.x+1)/2*canvas.clientWidth,y:(1-p.y)/2*canvas.clientHeight};}
-window.demoDiagnostics=()=>({wallEmergency:wallEmergency(),conversation,socialChecks,conversationCount:social.count,activities:activities.map(a=>a.activity),language,canvasTexts:localizedCanvasText(),orbit:orbit.diagnostics(),logoReady:!!ship.roof.userData.logoReady,windows:ship.windows.length,mode,worldScale:SHIP_SCALE,freeCamera:true,crew:ship.people.length,devices:ship.devices.length,rooms:zones.filter(z=>z.id.startsWith('room')).length,zones:zones.map(z=>z.id),sharedScreens:1,simulationTime:time,paused,stage:eventStart===null?-1:stageAt(time-eventStart),acknowledged,incident:incident?{...incident}:null,crewRotations:ship.people.map(p=>p.body.rotation.z),data:data.map(c=>({...c})),positions:ship.people.map(p=>p.g.position.toArray()),camera:camera.position.toArray(),target:controls.target.toArray(),direction:camera.getWorldDirection(new THREE.Vector3()).toArray(),phonePixels:ship.people.map(p=>screenPosition(p.phone)),screenPixel:screenPosition(ship.screen),triangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,webgl:renderer.capabilities.isWebGL2,frame});
+Object.assign(window, {demoDiagnostics:()=>({wallEmergency:wallEmergency(),conversation,socialChecks,conversationCount:social.count,activities:activities.map(a=>a.activity),language,canvasTexts:localizedCanvasText(),orbit:orbit.diagnostics(),logoReady:!!ship.roof.userData.logoReady,windows:ship.windows.length,mode,worldScale:SHIP_SCALE,freeCamera:true,crew:ship.people.length,devices:ship.devices.length,rooms:zones.filter(z=>z.id.startsWith('room')).length,zones:zones.map(z=>z.id),sharedScreens:1,simulationTime:time,paused,stage:eventStart===null?-1:stageAt(time-eventStart),acknowledged,incident:incident?{...incident}:null,crewRotations:ship.people.map(p=>p.body.rotation.z),data:data.map(c=>({...c})),positions:ship.people.map(p=>p.g.position.toArray()),camera:camera.position.toArray(),target:controls.target.toArray(),direction:camera.getWorldDirection(new THREE.Vector3()).toArray(),phonePixels:ship.people.map(p=>screenPosition(p.phone)),screenPixel:screenPosition(ship.screen),triangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,webgl:renderer.capabilities.isWebGL2,frame})});

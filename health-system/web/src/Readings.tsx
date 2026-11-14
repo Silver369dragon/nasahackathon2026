@@ -11,15 +11,24 @@ import {
   Thermometer,
 } from 'lucide-react'
 import { api, restricted } from './api'
-import { metrics, prettyValue, relativeTime, selectReadings, stamp, tx } from './domain'
-import type { CrewSummary, Lang, Measurement, Metric } from './domain'
-import { label } from './labels'
+import { monitoringMetrics as metrics, prettyValue, relativeTime, selectReadings, stamp, tx, displayUnit, workOfBreathingFields } from './domain'
+import type { CrewSummary, Lang, Measurement, MonitoringMetric } from './domain'
+import { contextLabels, label } from './labels'
 
 export const metricIcons = {
   heart_rate: HeartPulse,
   spo2: Droplets,
   blood_pressure: Gauge,
   temperature: Thermometer,
+  respiratory_rate: Activity,
+  work_of_breathing: Activity,
+}
+
+function BreathingDetails({ record, lang }: { record: Measurement; lang: Lang }) {
+  if (!record.value || typeof record.value !== 'object') return null
+  return <dl className="breathing-details">{workOfBreathingFields(record.value, lang).map(([name, value]) =>
+    <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}
+  </dl>
 }
 
 export function Reading({
@@ -30,7 +39,7 @@ export function Reading({
   board = false,
 }: {
   crew: CrewSummary
-  metric: Metric
+  metric: MonitoringMetric
   lang: Lang
   compact?: boolean
   board?: boolean
@@ -46,7 +55,7 @@ export function Reading({
   const Icon = metricIcons[metric.code]
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const contexts = record
-    ? Object.values(record.context ?? {}).filter((v): v is string => typeof v === 'string' && !!v)
+    ? contextLabels(record.context ?? {}, lang)
     : []
   return (
     <article
@@ -60,7 +69,7 @@ export function Reading({
         <h3>{t(metric.en, metric.zh)}</h3>
       </header>
       <div className="reading-number">
-        <strong>{records.map((r) => prettyValue(r)).join(' / ')}</strong>
+        <strong>{records.map((r) => prettyValue(r, false, lang)).join(' / ')}</strong>
         <span>{metric.unit}</span>
       </div>
       <div className={'status-tag ' + (issue || status === 'stale' ? 'warn' : record ? 'ok' : '')}>
@@ -70,6 +79,9 @@ export function Reading({
       </div>
       {record ? (
         <>
+          {record.provenance.isSynthetic && <span className="simulation-label">{t('Simulation', '模擬資料')}</span>}
+          <details className="reading-details">
+          <summary>{t('Details', '詳細資料')}</summary>
           <div className="reading-meta">
             <span>
               {label(record.provenance.source, lang)}
@@ -82,13 +94,14 @@ export function Reading({
             {!compact && <span>{relativeTime(record.observedAt, lang)}</span>}
           </div>
           {issue?.qualityReason && <p className="reason">{issue.qualityReason}</p>}
+          <BreathingDetails record={record} lang={lang} />
           {!board && (!compact || issue || status === 'stale') && (
             <div className="valid-row">
               <span>{t('Last valid measurement', '最近有效量測')}</span>
               {validRecord ? (
                 <>
                   <b>
-                    {valid.map((r) => prettyValue(r)).join(' / ')} {metric.unit}
+                    {valid.map((r) => prettyValue(r, false, lang)).join(' / ')} {metric.unit}
                   </b>
                   <time>{stamp(validRecord.observedAt, lang)}</time>
                 </>
@@ -99,9 +112,10 @@ export function Reading({
           )}
           {!compact && (
             <p className="method">
-              {[label(record.method, lang), ...contexts.map((v) => label(v, lang))].join(' · ')}
+              {[label(record.method, lang), ...contexts].join(' · ')}
             </p>
           )}
+          </details>
         </>
       ) : (
         <div className="reading-meta">
@@ -197,7 +211,7 @@ export function History({ crew, lang, deny, historyRevision }: { crew: CrewSumma
     setPage(cursor)
   }
   return (
-    <section className="panel">
+    <section className="panel history-panel">
       <div className="panel-head">
         <h2>
           <Clock3 size={18} />
@@ -263,13 +277,24 @@ export function History({ crew, lang, deny, historyRevision }: { crew: CrewSumma
                     : ''
                 return (
                   <tr key={row.id}>
-                    <td>{stamp(row.observedAt, lang)}</td>
+                    <td className="history-time"><time>{new Date(row.observedAt).toLocaleTimeString(lang, { timeZone: 'UTC', hour12: false })}</time>
+                      <details><summary>{t('Record details', '紀錄詳情')}</summary>
+                        <p>{stamp(row.observedAt, lang)} UTC</p><p>{label(row.provenance.source, lang)} · {label(row.quality, lang)}</p>
+                        {row.qualityReason && <p>{row.qualityReason}</p>}<code>{row.id}</code>
+                        <p>{contextLabels(row.context, lang).join(' · ')}</p>
+                        <BreathingDetails record={row} lang={lang} />
+                      </details>
+                    </td>
                     <td>
                       {metric ? t(metric.en, metric.zh) : row.metricCode}
                       {field && ' · ' + field}
+                      {row.provenance.isSynthetic && <span className="simulation-label">{t('Simulation', '模擬資料')}</span>}
                     </td>
                     <td>
-                      <b>{prettyValue(row, true)}</b> {row.unit === 'Cel' ? '°C' : row.unit}
+                      <b className={typeof row.value === 'object' && row.value ? 'structured-value' : undefined}>{prettyValue(row, true, lang)}</b> {displayUnit(row.unit, row.metricCode)}
+                      {row.quality !== 'good' && <span className="history-quality-note">
+                        {label(row.quality, lang)}{row.qualityReason && ' · ' + row.qualityReason}
+                      </span>}
                     </td>
                     <td>
                       {label(row.provenance.source, lang)}
@@ -399,10 +424,9 @@ export function Catalog({ lang, deny }: { lang: Lang; deny: () => void }) {
                   <td>{t(i.labelEn, i.label)}</td>
                   <td>{label(i.category, lang)}</td>
                   <td>{i.dataType}</td>
-                  <td>{i.unit === 'Cel' ? '°C' : (i.unit ?? '—')}</td>
+                  <td>{i.unit ? displayUnit(i.unit, i.code) : '—'}</td>
                   <td>{i.sourceOptions.map((s) => label(s, lang)).join(' · ')}</td>
-                  <td>{i.assessmentForm === 'news2' ? t('NEWS2 assessment', 'NEWS2 評估表單') :
-                    i.enabled ? t('Enabled', '已開放') : t('Planned', '規劃中')}</td>
+                  <td>{i.enabled ? t('Enabled', '已開放') : i.assessmentForm === 'news2' ? t('NEWS2 assessment', 'NEWS2 評估表單') : t('Planned', '規劃中')}</td>
                 </tr>
               ))}
             </tbody>

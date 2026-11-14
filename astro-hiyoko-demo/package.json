@@ -10,6 +10,7 @@
     "test:body": "playwright test --config=playwright.body.config.js"
   },
   "dependencies": {
+    "mediabunny": "1.66.0",
     "three": "0.180.0"
   },
   "devDependencies": {
