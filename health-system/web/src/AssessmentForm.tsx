@@ -174,14 +174,22 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     const [min, max, stepSize, start] = ranges[k]!
     const raw = Number(draft.fields[k])
     const value = draft.fields[k] && Number.isFinite(raw) ? raw : start
+    const outside = !!draft.fields[k] && (raw < min || raw > max)
+    const preciseOnly = !!draft.fields[k] && raw !== Number(fixed(k, raw))
+    const disabled = outside || preciseOnly
     const nudge = (delta: number) => field(k, fixed(k, Math.min(max, Math.max(min, Math.round((value + delta) / stepSize) * stepSize))))
     return <div className="slider-field">
-      <div className="slider-head"><span>{nameOf(k, lang)}</span><output>{fixed(k, value)}<small>{units[k]}</small></output></div>
+      <div className="slider-head"><output>{draft.fields[k] || t('Not entered', '未輸入')}<small>{units[k]}</small></output></div>
+      {control(k)}
+      {(outside || preciseOnly) && <p className="slider-hint">{outside
+        ? t('Outside slider range; use the number field.', '超出滑桿範圍，請用數字欄位調整。')
+        : t('More precise than the slider step; use the number field.', '精度超出滑桿步距，請用數字欄位調整。')}</p>}
       <div className="slider-row">
-        <button type="button" onClick={() => nudge(-stepSize)} aria-label={t('Decrease', '減少')}><Minus size={22}/></button>
-        <input type="range" min={min} max={max} step={stepSize} value={value} aria-label={nameOf(k, lang)}
+        <button type="button" disabled={disabled} onClick={() => nudge(-stepSize)} aria-label={t('Decrease', '減少')}><Minus size={22}/></button>
+        <input type="range" min={min} max={max} step={stepSize} value={value} disabled={disabled}
+          aria-label={nameOf(k, lang) + t(' slider', '滑桿')} aria-valuetext={draft.fields[k] || t('Not entered', '未輸入')}
           onChange={e => field(k, fixed(k, Number(e.target.value)))}/>
-        <button type="button" onClick={() => nudge(stepSize)} aria-label={t('Increase', '增加')}><Plus size={22}/></button>
+        <button type="button" disabled={disabled} onClick={() => nudge(stepSize)} aria-label={t('Increase', '增加')}><Plus size={22}/></button>
       </div>
     </div>
   }
@@ -204,8 +212,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     return <>
       {latest && <button type="button" className={'news-use-latest' + (draft.fields[k] ? ' compact' : '')} onClick={() => link(latest.id)}>
         {t('Use latest reading', '用最近一筆量測')} · <b>{prettyValue(latest, true, lang)} {units[k]}</b></button>}
-      {draft.fields[k] ? slider(k) : <button type="button" className="news-manual" onClick={() => field(k, fixed(k, ranges[k]![3]))}>
-        {t('Enter by hand', '手動輸入')}</button>}
+      {slider(k)}
     </>
   }
   function poorToggle(k: Field) {
@@ -217,8 +224,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     if (k === 'neurological_assessment' || k === 'supplemental_oxygen') return choiceButtons(k)
     if (k === 'spo2_scale') return <>{choiceButtons(k)}{draft.fields.spo2_scale === 'scale2' && <>
       <p className="news-sub">{nameOf('scale2Documented', lang)}</p>{choiceButtons('scale2Documented')}</>}</>
-    if (k === 'respiratory_rate') return <>{draft.fields[k] ? slider(k) : <button type="button" className="news-manual"
-      onClick={() => field(k, fixed(k, ranges[k]![3]))}>{t('Enter by hand', '手動輸入')}</button>}
+    if (k === 'respiratory_rate') return <>{slider(k)}
       <label className="news-inline">{nameOf('observationSeconds', lang)} (s)<input type="number" min={1} step="1"
         value={draft.fields.observationSeconds ?? ''} onChange={e => field('observationSeconds', e.target.value)}/></label>
       {poorToggle(k)}</>

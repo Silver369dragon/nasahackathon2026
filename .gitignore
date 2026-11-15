@@ -34,3 +34,10 @@ review-explore.mjs
 
 # Project specifications
 *[Ss]pec*.md
+
+# Keep the PR4 safety regression in source control.
+!health-system/web/tests/
+health-system/web/tests/*
+!health-system/web/tests/browser/
+health-system/web/tests/browser/*
+!health-system/web/tests/browser/mobile-safety.spec.ts

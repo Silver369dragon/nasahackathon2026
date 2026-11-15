@@ -106,28 +106,39 @@ export function EmergencyNotices({ items, lang, username, crewId, crew }: {
 }
 
 // Phone layout: a new emergency from someone else opens a red pop-up over the current screen.
-// Notices not yet acknowledged (for example older than the pop-up window) show as a bell in the
-// top bar; "Got it" acknowledges everything up to the newest notice and removes the bell.
+// Every notice is acknowledged by ID, including notices with identical timestamps.
 const POPUP_WINDOW_MS = 30 * 60 * 1000
 
 export function EmergencyAlert({ items, lang, username, crewId, crew, openAid }: {
   items: Emergency[]; lang: Lang; username: string; crewId: string | null; crew: CrewSummary[]; openAid: () => void
 }) {
-  const seenKey = 'orbital.emergency.seenAt.' + username
-  const [seenAt, setSeenAt] = useState(() => Date.parse(sessionStorage.getItem(seenKey) ?? '') || 0)
+  const storageKey = 'orbital.emergency.ackIds.v1.' + username
+  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(() => {
+    try {
+      const saved: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? '[]')
+      return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [])
+    } catch { return new Set() }
+  })
   const [reopened, setReopened] = useState(false)
+  const [deferredIds, setDeferredIds] = useState<Set<string>>(new Set())
   const isMine = (item: Emergency) => item.source === 'manual' && item.crewId === crewId
-  const unseen = items.filter(item => !isMine(item) && Date.parse(item.createdAt) > seenAt)
+  const unseen = items.filter(item => !isMine(item) && !acknowledgedIds.has(item.id))
   if (!unseen.length) return null
   const newest = unseen[0]
-  const recent = Date.now() - Date.parse(newest.createdAt) < POPUP_WINDOW_MS
+  const recent = unseen.some(item => !deferredIds.has(item.id) &&
+    Date.now() - Date.parse(item.createdAt) < POPUP_WINDOW_MS)
   const open = reopened || recent
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const name = crew.find(row => row.crewId === newest.crewId)?.name ?? nameOf(newest)
-  function acknowledge() {
-    sessionStorage.setItem(seenKey, items[0].createdAt)
-    setSeenAt(Date.parse(items[0].createdAt))
-    setReopened(false)
+  function acknowledge(forAid = false) {
+    const next = new Set(acknowledgedIds).add(newest.id)
+    setAcknowledgedIds(next)
+    try { sessionStorage.setItem(storageKey, JSON.stringify([...next])) } catch { /* Keep this session usable. */ }
+    setReopened(!forAid && unseen.length > 1)
+    if (forAid) {
+      setDeferredIds(new Set(unseen.map(item => item.id)))
+      openAid()
+    }
   }
   return <>
     <button type="button" className="emergency-bell" onClick={() => setReopened(true)}
@@ -143,9 +154,9 @@ export function EmergencyAlert({ items, lang, username, crewId, crew, openAid }:
           <span>{sourceLabel(newest, lang)}</span>
           <time dateTime={newest.createdAt}>{stamp(newest.createdAt, lang)}</time>
         </div>
-        <button type="button" className="emergency-popup-aid" onClick={() => { acknowledge(); openAid() }}>
+        <button type="button" className="emergency-popup-aid" onClick={() => acknowledge(true)}>
           <BookHeart size={20} aria-hidden="true"/>{t('Open first aid', '開啟急救指引')}</button>
-        <button type="button" className="emergency-popup-ok" autoFocus onClick={acknowledge}>
+        <button type="button" className="emergency-popup-ok" autoFocus onClick={() => acknowledge()}>
           <Check size={20} aria-hidden="true"/>{t('Got it', '我知道了')}</button>
       </section>
     </div>}

@@ -106,17 +106,18 @@ export function HistoryTimeline({ crew, lang, deny, historyRevision }: {
     }
     return { state: status(m), value: status(m) === 'unusable' ? '' : prettyValue(m, true, lang) }
   }
-  const day = shown[0] ? new Date(shown[0].at).toLocaleDateString(lang, { timeZone: 'UTC', month: 'numeric', day: 'numeric' }) : ''
   return <section className="panel history-timeline history-matrix">
-    <p className="history-day">{day} UTC<span className="history-legend">
+    <p className="history-day">{t('Observation time (UTC)', '量測時間（UTC）')}<span className="history-legend">
       <span className="dot inside"/>{t('In range', '範圍內')}<span className="dot outside"/>{t('Outside', '超出')}
       <span className="dot unusable"/>{t('Unusable', '品質不足')}<span className="dot none"/>{t('Not taken', '沒量')}</span></p>
     {shown.length ? <table>
       <thead><tr><th scope="col">UTC</th>{matrixRows.map(([code, en, zh]) => <th key={code} scope="col">{t(en, zh)}</th>)}</tr></thead>
       <tbody>{shown.map(row => <tr key={row.key}>
         <th scope="row"><button onClick={() => setOpen(row)} aria-label={t('Details for ', '查看詳細 ') + stamp(row.at, lang)}>
-          {new Date(row.at).toLocaleTimeString(lang, { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })}
-          <small>:{row.at.slice(17, 19)}</small></button></th>
+          <time dateTime={row.at}>
+            <span>{new Date(row.at).toISOString().slice(0, 10)}</span>
+            <span>{new Date(row.at).toISOString().slice(11, 19)}</span>
+          </time></button></th>
         {matrixRows.map(([code, en, zh]) => { const c = cell(row, code); return <td key={code}>
           <button onClick={() => setOpen(row)} aria-label={t(en, zh) + ' ' + (c.value || (c.state === 'none' ? t('not taken', '沒量') : t('unusable', '品質不足')))}>
             <span className={'dot ' + c.state}/><small>{c.value}</small></button></td> })}</tr>)}</tbody>

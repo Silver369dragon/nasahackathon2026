@@ -25,9 +25,9 @@ const sliderRange: Record<string, [number, number, number, number]> = {
 }
 const sliderText = (code: string, value: number) => value.toFixed(sliderRange[code][2] < 1 ? 1 : 0)
 
-function newDraft(metric: Metric, slider = false): Draft {
+function newDraft(metric: Metric): Draft {
   return {
-    values: metric.fields.map((code) => (slider ? sliderText(code, sliderRange[code][3]) : '')),
+    values: metric.fields.map(() => ''),
     time: localDateTime(),
     method: 'manual_training_entry',
     context: Object.fromEntries(Object.entries(contexts[metric.code]).map(([key, opts]) => [key, opts[0]])),
@@ -50,7 +50,7 @@ export function Measure({
   slider?: boolean
 }) {
   const [metric, setMetric] = useState<Metric>(metrics[0])
-  const [draft, setDraft] = useState<Draft>(() => newDraft(metrics[0], slider))
+  const [draft, setDraft] = useState<Draft>(() => newDraft(metrics[0]))
   const [command, setCommand] = useState<ReturnType<typeof makeCommand> | null>(null)
   const [ids, setIds] = useState<string[] | null>(null)
   const [sending, setSending] = useState(false)
@@ -71,7 +71,7 @@ export function Measure({
   }
   const change = (next: Metric) => {
     setMetric(next)
-    setDraft(newDraft(next, slider))
+    setDraft(newDraft(next))
     setCommand(null)
     setIds(null)
     setError('')
@@ -132,20 +132,29 @@ export function Measure({
     const raw = Number(draft.values[i])
     const value = draft.values[i] && Number.isFinite(raw) ? raw : start
     const missing = draft.quality === 'missing'
+    const outside = !!draft.values[i] && (raw < min || raw > max)
+    const preciseOnly = !!draft.values[i] && raw !== Number(sliderText(code, raw))
+    const disabled = missing || outside || preciseOnly
     const nudge = (delta: number) =>
       setValue(i, sliderText(code, Math.min(max, Math.max(min, Math.round((value + delta) / step) * step))))
     return (
       <div className="slider-field" key={code}>
         <div className="slider-head">
           <span>{fieldName(i)}</span>
-          <output>{missing ? '—' : sliderText(code, value)}<small>{metric.unit}</small></output>
+          <output>{missing ? '—' : draft.values[i] || t('Not entered', '未輸入')}<small>{metric.unit}</small></output>
         </div>
+        <input className="precise-value" type="number" step="any" aria-label={fieldName(i)}
+          value={draft.values[i]} disabled={missing} placeholder={t('Not entered', '未輸入')}
+          onChange={e => setValue(i, e.target.value)} />
+        {(outside || preciseOnly) && <p className="slider-hint">{outside
+          ? t('Outside slider range; use the number field.', '超出滑桿範圍，請用數字欄位調整。')
+          : t('More precise than the slider step; use the number field.', '精度超出滑桿步距，請用數字欄位調整。')}</p>}
         <div className="slider-row">
-          <button type="button" disabled={missing} onClick={() => nudge(-step)}
+          <button type="button" disabled={disabled} onClick={() => nudge(-step)}
             aria-label={t('Decrease', '減少') + ' ' + fieldName(i)}><Minus size={22} /></button>
-          <input type="range" min={min} max={max} step={step} value={value} disabled={missing}
-            aria-label={fieldName(i)} onChange={(e) => setValue(i, sliderText(code, Number(e.target.value)))} />
-          <button type="button" disabled={missing} onClick={() => nudge(step)}
+          <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+            aria-label={fieldName(i) + t(' slider', '滑桿')} aria-valuetext={draft.values[i] || t('Not entered', '未輸入')} onChange={(e) => setValue(i, sliderText(code, Number(e.target.value)))} />
+          <button type="button" disabled={disabled} onClick={() => nudge(step)}
             aria-label={t('Increase', '增加') + ' ' + fieldName(i)}><Plus size={22} /></button>
         </div>
         <div className="slider-scale"><span>{min}</span><span>{max}</span></div>

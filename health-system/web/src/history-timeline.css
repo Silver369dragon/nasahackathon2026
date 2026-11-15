@@ -33,7 +33,7 @@
 .history-matrix table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .history-matrix th, .history-matrix td { padding: 0; text-align: center; }
 .history-matrix thead th { padding: 4px 0; font-size: 12px; font-weight: 700; }
-.history-matrix thead th:first-child, .history-matrix tbody th { width: 52px; text-align: left; }
+.history-matrix thead th:first-child, .history-matrix tbody th { width: 76px; text-align: left; }
 .history-matrix thead th:first-child { font: 10px var(--mono); color: var(--muted); }
 .history-matrix tbody tr { border-top: 1px solid var(--line); }
 .history-matrix table button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%;
@@ -50,3 +50,5 @@
 .history-matrix .history-legend { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; font: 10px var(--mono); color: var(--muted); }
 .history-matrix .history-day { flex-wrap: wrap; }
 .history-matrix .history-pager span { font-size: 11px; }
+
+.history-matrix tbody th time { display: grid; gap: 3px; font-size: 10px; white-space: nowrap; }

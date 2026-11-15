@@ -66,3 +66,6 @@
 .news2-phone .news-step { gap: 6px; }
 .news2-phone .news-step-nav .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .news2-phone .news-step-nav .primary:disabled { opacity: .5; }
+
+.news2-phone .slider-field > label { display: grid; gap: 4px; font-size: 13px; }
+.news2-phone .slider-field > label input { min-height: 44px; font-size: 20px; width: 100%; }
