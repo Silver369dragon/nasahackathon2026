@@ -139,6 +139,9 @@ def _change_episode(db: sqlite3.Connection, episode: sqlite3.Row | None, state: 
                    (ident, WORKSPACE, crew, RULE, VERSION, state, row["receivedAt"], row["receivedAt"],
                     row["observedAt"], reason, evidence, evidence))
         publish_emergency(db, crew, "sensor", ident)
+    if state == 'active':
+        from .baseline_lifecycle import freeze_for_alert
+        freeze_for_alert(db, ident)
     _publish(db, ident, row["causationId"])
     return ident
 

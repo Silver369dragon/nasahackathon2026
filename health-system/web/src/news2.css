@@ -10,9 +10,20 @@
 .news2 .news-quality { display: flex; flex-direction: row; align-items: center; gap: 7px; min-height: 32px; color: var(--muted); font-size: 13px; }
 .news2 .news-quality input { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
 .news-history, .news-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.news-status { display: grid; gap: 5px; }
+.news-status { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.news-scores table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.news-scores th, .news-scores td { text-align: left; padding: 7px 5px; border-bottom: 1px solid var(--line); }
+.news-scores th[scope="row"] { font-weight: 500; }
+.news-scores p, .news-config { font-size: 13px; color: var(--muted); }
 .news-monitor { margin: 16px 0; }
 .news-monitor h2 { margin-top: 0; }
+.health-report-panel { padding: clamp(14px, 2.4vw, 24px); display: grid; gap: 12px; }
+.health-report { min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.health-report h4 { margin: 20px 0 8px; }
+.health-report p { line-height: 1.65; }
+.report-statistics { list-style: none; padding: 0; display: grid; gap: 10px; }
+.report-statistics li { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 5px; }
+.report-statistics small { color: var(--muted); }
 .news-monitor article { display: grid; grid-template-columns: minmax(55px, 12%) 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 
 /* Phone layout: one item per screen. Sliders reuse the record-measurement styles. */

@@ -31,6 +31,14 @@
 .trend-filters[open] { flex: 1 1 100%; }
 .trend-evidence { margin-bottom: 0; }
 .trend-evidence h2 { font-size: 14px; }
+.trend-baseline { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.trend-baseline button, .trend-evidence > button { margin: 6px 0; }
+.trend-baseline p, .trends .chat-source dd { overflow-wrap: anywhere; }
+.baseline-controls fieldset { min-width: 0; border: 1px solid var(--line); padding: 12px; margin: 12px 0; }
+.baseline-controls label { display: grid; gap: 6px; margin-bottom: 12px; }
+.baseline-controls input { min-width: 0; width: 100%; box-sizing: border-box; }
+.baseline-controls li { overflow-wrap: anywhere; margin: 8px 0; }
+.baseline-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 @media(max-width: 650px) {
   .trends { gap: 12px; }
   .trend-controls, .trend-series { padding: 13px; border-radius: 10px; }

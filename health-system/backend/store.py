@@ -104,6 +104,9 @@ CREATE INDEX IF NOT EXISTS changes_time ON changes(occurred);
 
 def initialize(path: Path) -> bytes:
     from .alerts import ALERT_SCHEMA
+    from .baseline_lifecycle import SCHEMA as LIFECYCLE_SCHEMA
+    from .baseline_lifecycle import migrate as migrate_baselines
+    from .baselines import SCHEMA as BASELINE_SCHEMA
     from .body_scan import SCHEMA as BODY_SCAN_SCHEMA
     from .incidents import EMERGENCY_SCHEMA
     from .news2 import SCHEMA as NEWS2_SCHEMA
@@ -125,7 +128,7 @@ def initialize(path: Path) -> bytes:
                 finally:
                     backup.close()
         initial.execute("PRAGMA journal_mode=WAL")
-        initial.executescript(SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA + BODY_SCAN_SCHEMA + RADIATION_SCHEMA)
+        initial.executescript(SCHEMA + BASELINE_SCHEMA + LIFECYCLE_SCHEMA + ALERT_SCHEMA + EMERGENCY_SCHEMA + TASK_SCHEMA + PUSH_SCHEMA + NEWS2_SCHEMA + BODY_SCAN_SCHEMA + RADIATION_SCHEMA)
     finally:
         initial.close()
     with connection(path, write=True) as db:
@@ -141,6 +144,7 @@ def initialize(path: Path) -> bytes:
             document = canonical_measurement(json.loads(measurement["document"]))
             db.execute("UPDATE measurements SET metric=?,document=? WHERE id=?",
                        (document["metricCode"], encoded(document), measurement["id"]))
+        migrate_baselines(db)
         for row in db.execute("SELECT id FROM crew").fetchall():
             update_summary(db, row["id"], "initialize")
         return bytes.fromhex(db.execute("SELECT value FROM settings WHERE key='cursor_secret'").fetchone()[0])
@@ -291,6 +295,9 @@ def accept(path: Path, batch: ManualBatch | Telemetry, actor: str, crew: str) ->
     request_data = batch.model_dump(mode="json")
     request_hash = digest(encoded(request_data))
     with connection(path, write=True) as db:
+        from .demo_store import other_source_blocked
+        if isinstance(batch, Telemetry) and other_source_blocked(db):
+            raise Problem(409, 'DEMO_SOURCE_ACTIVE', 'The demonstration owns the synthetic stream until playback stops.')
         previous = db.execute("SELECT hash,result FROM receipts WHERE context_key=? AND actor=? AND command=?",
                               (WORKSPACE, actor, command)).fetchone()
         if previous:
@@ -335,8 +342,9 @@ def accept(path: Path, batch: ManualBatch | Telemetry, actor: str, crew: str) ->
 
 
 def write_measurements(db: sqlite3.Connection, batch: ManualBatch | Telemetry, actor: str, crew: str,
-                       live: bool) -> Data:
+                       live: bool, *, refresh_summary: bool = True) -> Data:
     from .alerts import evaluate_heart_rate
+    from .baselines import analyze
     from .tasks import complete_measurement
 
     mock = isinstance(batch, Telemetry)
@@ -345,6 +353,7 @@ def write_measurements(db: sqlite3.Connection, batch: ManualBatch | Telemetry, a
     source = "mock" if mock else "manual"
     ids = []
     evaluations: list[str] = []
+    analyses: list[str] = []
     alerts: list[str] = []
     group = batch.measurementGroupId or next((m.measurementGroupId for m in batch.metrics if m.code in BP
                                                and m.measurementGroupId), None) or str(uuid4())
@@ -381,13 +390,21 @@ def write_measurements(db: sqlite3.Connection, batch: ManualBatch | Telemetry, a
                "deliveryKind": batch.deliveryKind if isinstance(batch, Telemetry) else "live"}
         db.execute("INSERT INTO measurements(id,crew_id,metric,observed,quality,live,document) VALUES(?,?,?,?,?,?,?)",
                    (ident, crew, row["metricCode"], observed, quality, live, encoded(row)))
-        append_event(db, crew, "measurement.accepted", row, 1, ident, cause)
+        analysis = analyze(db, row)
+        if analysis:
+            analyses.append(analysis["id"])
+            row["analysisId"] = analysis["id"]
+            db.execute("UPDATE measurements SET document=? WHERE id=?", (encoded(row), ident))
+        if refresh_summary:
+            append_event(db, crew, "measurement.accepted", row, 1, ident, cause)
         if metric.code == "heart_rate":
             evaluations, alerts = evaluate_heart_rate(db, row, live)
         ids.append(ident)
     if isinstance(batch, ManualBatch):
         complete_measurement(db, crew, observed, received, ids, cause)
-    update_summary(db, crew, cause)
+    if refresh_summary:
+        update_summary(db, crew, cause)
     return {"messageId": batch.messageId if isinstance(batch, Telemetry) else batch.commandId,
             "status": "accepted", "measurementIds": ids, "ruleEvaluationIds": evaluations, "alertIds": alerts,
-            "statisticsStatus": "not_enabled"}
+            "statisticsStatus": "saved" if analyses else "not_enabled",
+            **({"analysisIds": analyses} if analyses else {})}

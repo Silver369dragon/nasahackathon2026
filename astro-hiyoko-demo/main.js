@@ -13,7 +13,11 @@ import {createFilmActors} from './film-actors.js';
 import {routineAt} from './routines.mjs';
 import {scenarioReadings} from './scenarios.mjs';
 import {SHIP_SCALE,EYE_HEIGHT,stationCrew} from './config.mjs';
+import {createDemoClock,createDemoRoutines,committedElapsed,formatDemoTime,playbackNames,activityNames} from './health-demo-clock.mjs';
+import {createDemoReader} from './health-demo-client.mjs';
 const simulationMode = new URLSearchParams(location.search).get('mode') === 'simulation';
+const demoClock = createDemoClock(), demoRoutines = createDemoRoutines();
+let playbackState = null, playbackError = '';
 const crew = stationCrew.map((id, i) => ({
   ...simulatedCrew[i], id, name: id[0].toUpperCase() + id.slice(1),
 }));
@@ -88,10 +92,10 @@ function viewWindow(id=$('#zone-select').value){const port=ship.windows.find(p=>
 $('#window-view').onclick=()=>viewWindow();$('#taiwan-view').onclick=()=>{viewWindow('common');caption('Taiwan-facing Earth','SIMULATION · East Asia / Taiwan · Approximate visual alignment');};
 $('#orbit-view').onclick=()=>{setMode('exterior');camera.fov=62;camera.position.set(-400,100,130);controls.target.set(-10,-10,130);controls.update();camera.updateProjectionMatrix();caption('Earth orbit overview','SIMULATION · Slow continuous orbit · Navigation remains independent');$('#options').hidden=true;};
 $('#reset').onclick=resetSimulation;$('#event').onclick=()=>{triggerScenario('heart',2);openModal('phone',2);};$('#shared').onclick=()=>openModal('shared');$('#info').onclick=()=>openModal('info');$('#scenario-open').onclick=()=>openModal('scenario');$('#incident-banner').onclick=()=>openModal('scenario');$('#close').onclick=()=>modal.close();
-function updatePeople(dt=.016){activities=crew.map((_,i)=>routineAt(i,time));conversation=social.update(time,activities,!!incident);ship.people.forEach(({g,body,legs,arms,ring},i)=>{const collapsed=incident?.crewId===i&&incident.type==='collapse';const r=collapsed?{position:incident.position,moving:false,activity:'Simulated collapse',next:'Awaiting reset'}:activities[i];activities[i]=r;g.position.set(r.position[0],.08+(collapsed?.3/SHIP_SCALE.y:(.27+Math.sin(time*.8+i)*.055)/SHIP_SCALE.y),r.position[1]);const partner=conversation&&(conversation.a===i||conversation.b===i)?activities[conversation.a===i?conversation.b:conversation.a]:null;const heading=collapsed?0:r.moving?r.heading:partner?Math.atan2(partner.position[0]-r.position[0],partner.position[1]-r.position[1]):0;body.rotation.y+=Math.atan2(Math.sin(heading-body.rotation.y),Math.cos(heading-body.rotation.y))*(1-Math.exp(-4*dt));body.rotation.z=collapsed?-Math.min(1,(time-incident.start)/1.2)*Math.PI/2:Math.sin(time*.65+i)*.018;legs.forEach((leg,j)=>leg.rotation.x=collapsed?0:r.moving?Math.sin(time*.9+j*Math.PI+i)*.09:r.activity==='Cycle training'?Math.sin(time*1.8+j*Math.PI)*.28:r.activity==='Rest'?.12:0);
+function updatePeople(dt=.016){activities=simulationMode?crew.map((_,i)=>routineAt(i,time)):demoRoutines.at(time*1000);conversation=simulationMode?social.update(time,activities,!!incident):null;ship.people.forEach(({g,body,legs,arms,ring},i)=>{const collapsed=incident?.crewId===i&&incident.type==='collapse';const r=collapsed?{position:incident.position,moving:false,activity:'Simulated collapse',next:'Awaiting reset'}:activities[i];activities[i]=r;g.position.set(r.position[0],.08+(collapsed?.3/SHIP_SCALE.y:(.27+Math.sin(time*.8+i)*.055)/SHIP_SCALE.y),r.position[1]);const partner=conversation&&(conversation.a===i||conversation.b===i)?activities[conversation.a===i?conversation.b:conversation.a]:null;const heading=collapsed?0:r.moving?r.heading:partner?Math.atan2(partner.position[0]-r.position[0],partner.position[1]-r.position[1]):0;body.rotation.y+=Math.atan2(Math.sin(heading-body.rotation.y),Math.cos(heading-body.rotation.y))*(1-Math.exp(-4*dt));body.rotation.z=collapsed?-Math.min(1,(time-incident.start)/1.2)*Math.PI/2:Math.sin(time*.65+i)*.018;legs.forEach((leg,j)=>leg.rotation.x=collapsed?0:r.moving?Math.sin(time*.9+j*Math.PI+i)*.09:r.activity==='Cycle training'?Math.sin(time*1.8+j*Math.PI)*.28:r.activity==='Rest'?.12:0);
  arms.forEach((arm,j)=>{arm.rotation.x=collapsed?0:r.moving?Math.sin(time*.8+j*Math.PI+i)*-.07:r.activity==='Resistance training'?-.35-Math.sin(time*1.2)*.3:r.activity==='Stretching'?-.45-Math.sin(time*.65+j)*.2:r.activity==='Photo break'?-.85:r.activity==='Plant care'?-.4+Math.sin(time*.7)*.1:r.activity==='Shared meal'||r.activity==='Tea break'?-.25-Math.max(0,Math.sin(time*.65+j))*.35:r.activity==='Personal work'?(j===0?-.65:-.1):partner&&j===0?-.2-Math.sin(time*1.4)*.1:r.activity==='Rest'?-.15:0;});ring.visible=i===selected&&!collapsed;});emergencyRing.visible=!!incident;if(incident){const p=(incident.type==='radiation'?ship.screen:ship.people[incident.crewId].g).getWorldPosition(new THREE.Vector3());emergencyRing.material.color.set(incident.type==='radiation'?'#ffd16c':incident.type==='offline'?'#80c5ff':'#ff815e');emergencyRing.position.set(p.x+.4,.08*SHIP_SCALE.y+.04,p.z);emergencyRing.scale.setScalar(1+Math.sin(time*4)*.06);}}
 function updateData(){
-  $('#clock').textContent = `T+${String(Math.floor(time / 60)).padStart(2, '0')}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+  $('#clock').textContent = simulationMode ? `T+${formatDemoTime(time*1000)}` : `${formatDemoTime(committedElapsed(playbackState))} / 05:00`;
   if (!simulationMode) return;
   const raw=readings(time,false).map((c,i)=>({...c,name:crew[i].name,heart:c.heart+(activities[i].activity.includes('training')?22:activities[i].moving?8:0),activity:activities[i].activity,next:activities[i].next,sequence:Math.floor(time),timestamp:time}));data=scenarioReadings(raw,incident);const step=eventStart===null?-1:stageAt(time-eventStart);const name=incident?(incident.type==='radiation'?'Ship-wide':crew[incident.crewId].name):'';$('#event-status').textContent=step<0?'Ready for a simulated scenario':acknowledged?'Acknowledged; simulated event remains active until reset.':[`${name}：${scenarioName(incident.type)+' (scripted)'}`,'Crew device: same simulated event','Shared display: team event visible','Awaiting review: acknowledge on the shared display','Awaiting review: acknowledge on the shared display'][step];$('#incident-banner').hidden=!incident;$('#incident-banner').textContent=incident?`Simulated ${scenarioName(incident.type)} · ${name} · ${acknowledged?'Reviewed':'Awaiting review'} · F controls`:'';drawScreens();if(modal.open)refreshModal();}
 function drawScreens(){const x=ship.shared.ctx;x.fillStyle='#10232b';x.fillRect(0,0,1024,512);x.fillStyle='#f6c85b';x.font='25px monospace';x.fillText('HIYOKO / CREW HEALTH',35,48);x.font='18px monospace';x.fillText('SIMULATION ONLY',755,48);data.forEach((c,i)=>{const y=108+i*74;x.fillStyle=c.flag?'#4b3827':'#1d343e';x.fillRect(25,y-28,974,62);x.fillStyle=c.color;x.font='26px monospace';x.fillText(c.name,45,y+10);x.fillStyle='#e1efee';x.fillText(`${c.heart??"--"} BPM`,310,y+10);x.fillText(`${c.oxygen??"--"}%`,550,y+10);x.fillText(c.flag?(c.dataQuality==='missing'?'OFFLINE':c.environmentalWarning?'ENV / SIM':c.fallDetected?'FALL / SIM':'CHECK IN'):'SIMULATED',750,y+10);const d=ship.devices[i],ctx=d.ctx;ctx.fillStyle='#132d37';ctx.fillRect(0,0,256,384);ctx.fillStyle=c.color;ctx.font='28px monospace';ctx.fillText(c.name,20,48);ctx.font='68px monospace';ctx.fillText(String(c.heart??"--"),20,155);ctx.font='24px monospace';ctx.fillText('BPM / SIM',20,199);ctx.fillText(`${c.oxygen??"--"}% O2`,20,250);ctx.fillText(c.flag?(c.dataQuality==='missing'?'OFFLINE':c.environmentalWarning?'ENV / SIM':c.fallDetected?'FALL / SIM':'CHECK IN'):'SIMULATED',20,330);d.texture.needsUpdate=true;});ship.shared.texture.needsUpdate=true;}
@@ -199,7 +203,6 @@ if (simulationMode) {
   void loadFilmMedia(undefined, {wall:ship.shared, audio:false, onRadiation:(snapshot,status)=>radiationMonitor.receive(snapshot,status), onReady:ready => {
     stationsReady = ready;
     $('#crew-select').disabled = !ready;
-    $('.sim-dot').textContent = ready ? 'Health system' : 'Preparing devices';
     if (ready && modal.open && modalType === 'health' && !$('#modal-body iframe')) {
       openModal(modal.classList.contains('phone-modal') ? 'phone' : 'shared');
     }
@@ -213,14 +216,48 @@ if (simulationMode) {
     });
   }).catch(error => { caption('Medical displays unavailable', error.message); });
   $('#crew-select').disabled = true;
-  for (const id of ['scenario-open', 'event', 'event-status']) $('#' + id).hidden = true;
-  $('.sim-dot').textContent = 'Preparing devices';
-  $('#mode-description').textContent = 'Each crew device starts signed in. Live readings and the latest emergency appear on the commons wall. Click it for the full board.';
+  for (const id of ['scenario-open', 'event', 'event-status', 'pause', 'reset']) {
+    $('#' + id).hidden = true;
+    if ('disabled' in $('#' + id)) $('#' + id).disabled = true;
+  }
+  $('#speed').disabled = true;
+  $('#speed').closest('label').hidden = true;
+  $('.sim-dot').textContent = '讀取播放狀態';
+  $('#mode-description').textContent = '30 天合成歷史＋5 分鐘示範。船員活動跟隨後端已儲存進度；手機與看板顯示醫療系統的同一份紀錄。';
+  const playbackLink = $('#options a[href="playback.html"]');
+  playbackLink.textContent = '開啟 5 分鐘示範控制';
+  const summary = document.createElement('p');
+  summary.id = 'playback-summary';
+  summary.dataset.noTranslate = '';
+  summary.setAttribute('role','status');
+  playbackLink.before(summary);
+  const readDemo = createDemoReader();
+  async function syncPlayback() {
+    try {
+      const state = await readDemo();
+      playbackState = state;
+      playbackError = '';
+      demoClock.receive(state,performance.now());
+      demoRoutines.receive(state);
+      const status = playbackNames[state.status] || state.status;
+      $('.sim-dot').textContent = status;
+      summary.textContent = `${status} · ${formatDemoTime(committedElapsed(state))} / 05:00 · ${state.datasetId || '尚未準備資料'}。${state.error || ''}`;
+      summary.title = (state.activities ?? []).map(row => `${row.crewId}: ${activityNames[row.activity] || row.activity}`).join(' / ');
+      updateData();
+    } catch (error) {
+      playbackError = error.message;
+      $('.sim-dot').textContent = '播放連線中斷';
+      summary.textContent = `播放連線中斷 · 保留 ${formatDemoTime(committedElapsed(playbackState))} 已提交進度。${error.message}`;
+    } finally {
+      setTimeout(syncPlayback,1000);
+    }
+  }
+  void syncPlayback();
   $('#device-hint').textContent = 'Click a device to open the health system';
 }
 $('#language').onchange=e=>{setLanguage(e.target.value);updateData();};localizeDOM();
 resetView();updatePeople();crewModels.update();equipment.update(0);updateData();$('#loading').remove();let last=performance.now(),acc=0;
-function animate(now){requestAnimationFrame(animate);const elapsed=Math.max(0,Math.min((now-last)/1000,.5)),dt=Math.min(elapsed,.1);last=now;if(document.hidden)return;orbitTime+=elapsed;if(!paused){time+=elapsed*speed;acc+=elapsed*speed;updatePeople(dt);crewModels.update();equipment.update(0);}if(mode==='interior'&&!modal.open){const f=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0),r=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),u=(keys.has('e')?1:0)-(keys.has('q')?1:0);const norm=Math.max(1,Math.hypot(f,r)),blend=1-Math.exp(-14*dt);velocity.forward+=(f*5/norm-velocity.forward)*blend;velocity.right+=(r*5/norm-velocity.right)*blend;velocity.up+=(u*4-velocity.up)*blend;const panBlend=1-Math.exp(-18*dt),pf=panQueue.forward*panBlend,pr=panQueue.right*panBlend;panQueue.forward-=pf;panQueue.right-=pr;translate(velocity.forward*dt+pf,velocity.right*dt+pr);camera.position.y+=velocity.up*dt;look();}if(acc>=1){acc=0;updateData();}if(mode==='exterior')controls.update();orbit.update(orbitTime);starfield.quaternion.copy(orbit.skyAttitude());if (!(modal.open && modalType === 'health')) renderer.render(scene,camera);drawConversation(now);frame++;}requestAnimationFrame(animate);
+function animate(now){requestAnimationFrame(animate);const elapsed=Math.max(0,Math.min((now-last)/1000,.5)),dt=Math.min(elapsed,.1);last=now;if(document.hidden)return;orbitTime+=elapsed;if(simulationMode&&!paused){time+=elapsed*speed;acc+=elapsed*speed;updatePeople(dt);crewModels.update();equipment.update(0);}else if(!simulationMode){time=demoClock.elapsed(now)/1000;acc+=elapsed;updatePeople(dt);crewModels.update();equipment.update(0);}if(mode==='interior'&&!modal.open){const f=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0),r=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),u=(keys.has('e')?1:0)-(keys.has('q')?1:0);const norm=Math.max(1,Math.hypot(f,r)),blend=1-Math.exp(-14*dt);velocity.forward+=(f*5/norm-velocity.forward)*blend;velocity.right+=(r*5/norm-velocity.right)*blend;velocity.up+=(u*4-velocity.up)*blend;const panBlend=1-Math.exp(-18*dt),pf=panQueue.forward*panBlend,pr=panQueue.right*panBlend;panQueue.forward-=pf;panQueue.right-=pr;translate(velocity.forward*dt+pf,velocity.right*dt+pr);camera.position.y+=velocity.up*dt;look();}if(acc>=1){acc=0;updateData();}if(mode==='exterior')controls.update();orbit.update(orbitTime);starfield.quaternion.copy(orbit.skyAttitude());if (!(modal.open && modalType === 'health')) renderer.render(scene,camera);drawConversation(now);frame++;}requestAnimationFrame(animate);
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();caption('3D rendering interrupted','Reload to restore WebGL');});
 function screenPosition(object){const p=object.getWorldPosition(new THREE.Vector3()).project(camera);return{x:(p.x+1)/2*canvas.clientWidth,y:(1-p.y)/2*canvas.clientHeight};}
-Object.assign(window, {demoDiagnostics:()=>({wallEmergency:wallEmergency(),conversation,socialChecks,conversationCount:social.count,activities:activities.map(a=>a.activity),language,canvasTexts:localizedCanvasText(),orbit:orbit.diagnostics(),logoReady:!!ship.roof.userData.logoReady,windows:ship.windows.length,mode,worldScale:SHIP_SCALE,freeCamera:true,crew:ship.people.length,devices:ship.devices.length,rooms:zones.filter(z=>z.id.startsWith('room')).length,zones:zones.map(z=>z.id),sharedScreens:1,simulationTime:time,paused,stage:eventStart===null?-1:stageAt(time-eventStart),acknowledged,incident:incident?{...incident}:null,crewRotations:ship.people.map(p=>p.body.rotation.z),data:data.map(c=>({...c})),positions:ship.people.map(p=>p.g.position.toArray()),camera:camera.position.toArray(),target:controls.target.toArray(),direction:camera.getWorldDirection(new THREE.Vector3()).toArray(),phonePixels:ship.people.map(p=>screenPosition(p.phone)),screenPixel:screenPosition(ship.screen),triangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,webgl:renderer.capabilities.isWebGL2,frame})});
+Object.assign(window, {demoDiagnostics:()=>({wallEmergency:wallEmergency(),playback:playbackState,playbackError,crewIds:stationCrew,conversation,socialChecks,conversationCount:social.count,activities:activities.map(a=>a.activity),language,canvasTexts:localizedCanvasText(),orbit:orbit.diagnostics(),logoReady:!!ship.roof.userData.logoReady,windows:ship.windows.length,mode,worldScale:SHIP_SCALE,freeCamera:true,crew:ship.people.length,devices:ship.devices.length,rooms:zones.filter(z=>z.id.startsWith('room')).length,zones:zones.map(z=>z.id),sharedScreens:1,simulationTime:time,paused,stage:eventStart===null?-1:stageAt(time-eventStart),acknowledged,incident:incident?{...incident}:null,crewRotations:ship.people.map(p=>p.body.rotation.z),data:data.map(c=>({...c})),positions:ship.people.map(p=>p.g.position.toArray()),camera:camera.position.toArray(),target:controls.target.toArray(),direction:camera.getWorldDirection(new THREE.Vector3()).toArray(),phonePixels:ship.people.map(p=>screenPosition(p.phone)),screenPixel:screenPosition(ship.screen),triangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,webgl:renderer.capabilities.isWebGL2,frame})});

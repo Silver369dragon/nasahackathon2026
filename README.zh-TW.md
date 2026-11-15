@@ -55,9 +55,9 @@ flowchart TD
 
 ### 目前實作進度
 
-- **第一層**已實作合成心率規則通知，以及 NEWS2 觀察紀錄、缺項與品質檢查。NEWS2 總分目前保留空值，評分設定尚未啟用。
-- **第二層**已提供前七天同條件資料的比較，以及 Z-score／EWMA 計算。完整的基準審核、凍結與重建流程仍屬架構規劃。
-- **第三層**已提供個人紀錄查詢、本機知識檢索、引用與模型回答驗證。設計中的完整三層結果整合仍可持續擴充。
+- **第一層**提供合成心率規則通知、NEWS2 缺項與品質檢查，以及版本化訓練設定下的七個分項與完整總分。評估保存計分與輸入正規化版本；缺項或品質不足時完整總分為空，8/8 是輸入完整度。
+- **第二層**提供心率、血氧、呼吸頻率、收縮壓、舒張壓與體溫的不可變基準，支援候選審核與啟用、凍結、恢復、重建、停用、排除期間及操作歷史。逐筆保存版本化 Z-score／EWMA；明確重算會另存修訂，不改寫歷史證據。v3 示範以 `[preparedAt − 14 天, preparedAt − 7 天)` 的靜息資料，為五人建立各六組基準，共 30 組。
+- **第三層**提供授權個人紀錄查詢、本機知識檢索、引用與模型回答驗證。已保存三層報告固定 NEWS2 版本、相符量測與基準分析、規則證據及知識版本；助手可解釋同一報告並在追問中保留快照。模型不可用或驗證失敗時回退本機證據。各來源分開呈現，不產生綜合健康分數；合成訓練結果不代表臨床準確度或實際任務可用性。
 
 ## 在 Windows 啟動醫療系統
 
@@ -105,14 +105,18 @@ npm.cmd start
 
 - **太空輻射監測**：個人頁顯示歷史暴露、共同新增與合計；監測站可查看五人並切換模擬輻射事件。3D 船艙的「更多 → 開啟輻射監測」讀取同一份後端資料，重新整理不會歸零。所有輻射數值均為 Simulation。
 - **歷史資料匯入**：以 `monitor` 登入醫療系統的 `/system`，選取 JSON、確認摘要後匯入。可匯入生命徵象、身體掃描與輻射封存資料；匯入的輻射封存與即時任務分開顯示。
-- **即時資料播放備案**：啟動醫療與 3D 服務後，開啟 `http://127.0.0.1:4173/playback.html` 開始循環播放，讓五人手機與公共看板持續收到合成量測。停止後讀值會逐漸過期，歷史仍保留。
+- **30 天歷史＋300 秒播放**：先依[醫療指南](health-system/README.zh-TW.md#30-天歷史與五分鐘播放)，使用 `demo_prepare.py --dataset ... --output ...` 建立獨立候選資料庫。醫療服務使用已準備的資料庫後，由 `monitor` 在 `http://127.0.0.1:4173/playback.html` 手動開始或停止單次示範。時鐘及進度由後端保存，重新整理不重啟；連線模式沒有循環、暫停或倍速。歷史以 `preparedAt`、即時以 `startedAt` 定位，兩者之間的真實空檔保留。
 
 | 檔案 | 用途 |
 | --- | --- |
-| [60 秒資料包](astro-hiyoko-demo/data/crew-health-sample60.zip) | 資料播放器直接讀取的五人合成遙測；每輪 300 包、1,215 筆指標。供無硬體時展示資料流，不是歷史 JSON 匯入檔。 |
+| [v3 示範資料包](output/health-demo-v3/crew-demo-v3.zip) | 五位虛構船員、30 天歷史、六項基準指標與單次 300 秒劇本；[資料契約](health-system/DATA_DEMO_FORMAT.zh-TW.md)。準備程序先驗雜湊，再建立新候選庫。 |
+| [舊版 60 秒資料包](astro-hiyoko-demo/data/crew-health-sample60.zip) | 保留供獨立 `health-system/dataset_player.py` CLI 使用；目前 `/playback.html` 不再讀取此 ZIP。 |
 | [歷史 JSON 範例](health-system/examples/crew-dataset.example.json) | 在監測站的資料匯入功能選取，示範 `crew-dataset/1` 格式的歷史資料。 |
 
 程式分工：`health-system/backend/radiation*.py` 負責輻射累加、保存與 API；`dataset_import.py`、`body_import.py` 負責匯入；`health-system/web/src/RadiationPanel.tsx`、`DatasetImport.tsx` 提供操作介面；`astro-hiyoko-demo/radiation-monitor.js` 將輻射資訊接入船艙。操作細節見[醫療系統 README](health-system/README.zh-TW.md)與[3D README](astro-hiyoko-demo/README.zh-TW.md)。
+
+播放狀態限已登入 session 讀取；基本資料與評估摘要限本人或 `monitor`，開始／停止另需 `monitor`＋CSRF。合成資料及預期答案用於展示程式行為，不證明醫療效能；預期答案僅供測試，不作為 runtime 輸入。
+
 ## 硬體模擬
 
 - **Wokwi 電路模擬：** 以 ESP32 為基礎的生理感測系統互動式模擬，包含感測器接線與韌體程式。

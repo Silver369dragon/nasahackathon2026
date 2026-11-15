@@ -85,6 +85,9 @@ class RadiationRuntime:
         if not self.enabled:
             raise Problem(503, 'RADIATION_DISABLED', 'Radiation monitoring is disabled.')
         with self.lock, connection(self.path, write=True) as db:
+            from .demo_store import other_source_blocked
+            if other_source_blocked(db):
+                raise Problem(409, 'DEMO_SOURCE_ACTIVE', 'The demonstration owns the radiation stream until playback stops.')
             state = mission(db)
             if state is None or state['id'] != command.missionId:
                 raise Problem(404, 'NOT_FOUND', 'Unknown radiation mission.')

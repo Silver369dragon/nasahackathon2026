@@ -23,6 +23,11 @@ tests/
 e2e/
 integration/
 *.test.*
+!astro-hiyoko-demo/film-audio.test.mjs
+!astro-hiyoko-demo/film-versions.test.mjs
+!astro-hiyoko-demo/health-demo-clock.test.mjs
+!astro-hiyoko-demo/health-demo-proxy.test.mjs
+!astro-hiyoko-demo/health-demo-browser.test.mjs
 *.spec.*
 playwright*.config.*
 test-results/
@@ -41,3 +46,23 @@ health-system/web/tests/*
 !health-system/web/tests/browser/
 health-system/web/tests/browser/*
 !health-system/web/tests/browser/mobile-safety.spec.ts
+
+# Local captures, backups and private handoff material.
+/tmp/
+/output/*
+!/output/health-demo-v3/
+/output/health-demo-v3/*
+!/output/health-demo-v3/crew-demo-v3.zip
+/dataset-v2.zip
+/health-system/crew-health-sample60.zip
+/health-system/FIRMWARE_INTEGRATION.zh-TW-en.md
+/health-system/DATA_GENERATION_HANDOFF.zh-TW.md
+/health-system/五人健康資料生成規格_中英對照.docx
+/health-system/資料組交付包_v1.2.zip
+/astro-hiyoko-demo/tools/
+/astro-hiyoko-demo/film-assets/*evidence*.json
+/astro-hiyoko-demo/film-assets/validation.json
+/astro-hiyoko-demo/film-assets/body-map/*.json
+/astro-hiyoko-demo/film-assets/body-map/*-raw.webm
+/astro-hiyoko-demo/film-assets/body-map/poster.png
+/astro-hiyoko-demo/film-assets/body-map/selected.png

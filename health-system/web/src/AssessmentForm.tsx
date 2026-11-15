@@ -3,7 +3,9 @@ import { Check, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 import { api, ApiError, newId, restricted } from './api'
 import { prettyValue, stamp, tx, type Lang, type Measurement, type Session } from './domain'
 import { label } from './labels'
-import { choices, nameOf, problemText, units, valueOf, vitalCodes, type Assessment, type AssessmentSummary, type Field, type Vital } from './news2'
+import { HealthReportPanel } from './HealthReport'
+import { assessmentText, choices, configurationText, interpretationFor, interpretationNote, nameOf, problemText, riskBandText, scoreFields, units, valueOf, vitalCodes,
+  type Assessment, type AssessmentSummary, type Field, type ScoringConfiguration, type Vital } from './news2'
 import './news2.css'
 
 type Draft = {
@@ -17,11 +19,33 @@ const fromRecord = (a: Assessment): Draft => ({ id: a.id, version: a.version, ob
     .map(([k,v]) => [k,String(v)])), links: a.measurementIds, poor: a.poorQuality })
 
 export function AssessmentStatus({ item, lang }: { item: AssessmentSummary; lang: Lang }) {
+  const interpretation=interpretationFor(item)
   return <div className="news-status" data-testid={'news2-status-' + item.crewId} data-id={item.id} data-version={item.version}>
+    <strong>{assessmentText(item,lang)}</strong>
+    <span>{riskBandText(interpretation.riskBand,lang)}</span>
+    {interpretationNote(item,lang) && <small>{interpretationNote(item,lang)}</small>}
+    {interpretation.singleHighParameters.length>0 && <strong>{tx(lang,'Single score of 3: ','單項 3 分：')}{interpretation.singleHighParameters.map(k=>nameOf(k,lang)).join('、')}</strong>}
     <strong>{item.validCount}/8 {tx(lang,'usable inputs','項可用')}</strong>
-    <span>{problemText(item, lang) || tx(lang, 'Inputs complete. Mission scoring profile pending approval.',
-      '資料已齊，船內評分設定待核准。')}</span>
-    <small>{stamp(item.observedAt,lang)} · v{item.version} · {tx(lang, 'Total unavailable', '總分未提供')}</small>
+    <span>{problemText(item, lang) || tx(lang, 'Inputs complete.', '資料已齊。')}</span>
+    <small>{stamp(item.observedAt,lang)} · {tx(lang,'Record','紀錄')} v{item.version}</small>
+    <small>{tx(lang,'Scoring version: ','計分版本：')}{configurationText(item,lang)}</small>
+    {item.componentScores && <details className="news-scores">
+      <summary>{tx(lang,'Saved component scores','已保存分項計分')}</summary>
+      <table><thead><tr><th>{tx(lang,'Parameter','項目')}</th><th>{tx(lang,'Scoring input','計分用值')}</th><th>{tx(lang,'Points','分數')}</th></tr></thead>
+        <tbody>{scoreFields.map(k => <tr key={k}><th scope="row">{nameOf(k,lang)}</th>
+          <td>{valueOf(k,item.scoringInputs?.[k] ?? null,lang)}</td><td>{item.componentScores?.[k] ?? '—'}</td></tr>)}</tbody>
+      </table>
+      <small>{tx(lang,'A dash means unavailable, not zero.','「—」表示無法計分，不代表 0 分。')}</small>
+      {item.scoringInputs?.spo2_scale && <p>{nameOf('spo2_scale',lang)}：{valueOf('spo2_scale',item.scoringInputs.spo2_scale,lang)}</p>}
+      {item.normalizationVersion && <p>{tx(lang,
+        'Training input policy: round half up to whole numbers; temperature to 0.1°C. Original readings are preserved.',
+        '訓練輸入政策：數值四捨五入至整數，體溫至 0.1°C。原始量測值仍保留。')} <small>{item.normalizationVersion}</small></p>}
+    </details>}
+    <small>{tx(lang,'Training only · Not a clinical assessment or response instruction.','僅供訓練 · 不作為臨床評估或處置指示。')}</small>
+    {item.ruleSetVersion==='rcp-news2-2017-training-v1' && <small>{tx(lang,'Source: ','來源：')}
+      <a href="https://www.rcp.ac.uk/media/alxev00t/news2-chart-1_the-news-scoring-system_0_0.pdf" target="_blank" rel="noreferrer">RCP 2017 · Chart 1</a>{' · '}
+      <a href="https://www.rcp.ac.uk/media/2acdezkd/news2-chart-2_news-thresholds-and-triggers_0.pdf" target="_blank" rel="noreferrer">Chart 2</a>
+    </small>}
     {item.vitalReadings && Object.keys(item.vitalReadings).length > 0 && <details>
       <summary>{tx(lang,'Recorded vital signs','本次生命徵象')}</summary>
       <ul>{Object.entries(item.vitalReadings).map(([k,v]) => <li key={k}>{nameOf(k as Field,lang)} · {valueOf(k as Field,v,lang)}</li>)}</ul>
@@ -43,9 +67,9 @@ const ranges: Partial<Record<Field, [number, number, number, number]>> = {
 }
 const fixed = (k: Field, v: number) => v.toFixed((ranges[k]?.[2] ?? 1) < 1 ? 1 : 0)
 
-export function News2({ lang, session, assessmentRevision, revision, deny, ask, measure, stepped = false }: {
+export function News2({ lang, session, assessmentRevision, revision, deny, ask, askReport, measure, stepped = false }: {
   lang: Lang; session: Session; assessmentRevision: number; revision?: string; deny: () => void
-  ask: (id: string) => void; measure: () => void; stepped?: boolean
+  ask: (id: string) => void; askReport: (id: string) => void; measure: () => void; stepped?: boolean
 }) {
   const t = (en: string, zh: string) => tx(lang,en,zh)
   const [draft, setDraft] = useState<Draft>(blank)
@@ -61,8 +85,22 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
   const [candidates, setCandidates] = useState<Partial<Record<Vital,Measurement[]>>>({})
   const [candidateError, setCandidateError] = useState(false)
   const [step, setStep] = useState(0)
+  const [configuration, setConfiguration] = useState<ScoringConfiguration | null>(null)
+  const [configurationError, setConfigurationError] = useState(false)
   const command = useRef(newId())
   const flight = useRef(false)
+  useEffect(() => {
+    const controller = new AbortController()
+    void api<ScoringConfiguration>('/news2/config/current', { signal: controller.signal }).then(data => {
+      if (controller.signal.aborted) return
+      setConfiguration(data); setConfigurationError(false)
+    }).catch(e => {
+      if (controller.signal.aborted) return
+      if (restricted(e)) deny()
+      else setConfigurationError(true)
+    })
+    return () => controller.abort()
+  }, [deny,retry])
   useEffect(() => {
     const controller = new AbortController()
     void api<{items: AssessmentSummary[]}>('/news2', { signal: controller.signal }).then(async ({items}) => {
@@ -119,7 +157,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     try {
       const inputs: Record<string, unknown> = {}
       for (const [k,v] of Object.entries(draft.fields)) {
-        if (v === '' || v == null || draft.links[k as Vital]) continue
+        if (v === '' || v == null || draft.links[k as Vital] || (k === 'observationSeconds' && draft.links.respiratory_rate)) continue
         inputs[k] = k === 'supplemental_oxygen' || k === 'scale2Documented' ? v === 'true' : k in units ? Number(v) : v
       }
       const data = await api<Assessment>('/news2', { body: {
@@ -139,8 +177,8 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     return <label key={k}>{name}{units[k] ? ' (' + units[k] + ')' : ''}
       {opts ? <select aria-label={name} value={draft.fields[k] ?? ''} onChange={e => field(k,e.target.value)}>
         <option value="">{t('Not recorded','未記錄')}</option>{opts.map(([v,en,zh]) => <option key={v} value={v}>{t(en,zh)}</option>)}
-      </select> : <input aria-label={name} type={units[k] ? 'number' : 'text'} min={k === 'temperature' ? undefined : k === 'observationSeconds' ? 1 : 0}
-        max={k === 'spo2' ? 100 : undefined} maxLength={180} step={k === 'observationSeconds' ? '1' : 'any'}
+      </select> : <input aria-label={name} type={units[k] ? 'number' : 'text'} min={k === 'temperature' ? undefined : k === 'observationSeconds' ? 0.001 : 0}
+        max={k === 'spo2' ? 100 : undefined} maxLength={180} step="any"
         value={draft.fields[k] ?? ''} onChange={e => field(k,e.target.value)}/>}
     </label>
   }
@@ -152,6 +190,8 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
   function vital(k: Vital) {
     const chosen = draft.links[k]
     const options = candidates[k] ?? []
+    const duration = chosen ? options.find(m => m.id === chosen)?.context.observationDuration ??
+      (record?.measurementIds.respiratory_rate === chosen ? record.linkedRecords.respiratory_rate?.observationSeconds : null) : null
     return <div className="news-vital" key={k}>
       <label>{nameOf(k,lang)} · {t('Source','來源')}
         <select aria-label={nameOf(k,lang) + t(' source','來源')} value={chosen ?? ''} onChange={e => {
@@ -161,10 +201,13 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
           edit({ links })
         }}><option value="">{t('Enter this observation','輸入本次觀察')}</option>
           {chosen && !options.some(v => v.id === chosen) && <option value={chosen}>{t('Linked reading','已連結的量測')}</option>}
-          {options.map(m => <option key={m.id} value={m.id}>{stamp(m.observedAt,lang)} · {prettyValue(m, true, lang)} {units[k]} · {label(m.provenance.source,lang)} · {label(m.quality,lang)}</option>)}
+          {options.map(m => <option key={m.id} value={m.id}>{stamp(m.observedAt,lang)} · {typeof m.value === 'number' ? String(m.value) : '—'} {units[k]} · {label(m.provenance.source,lang)} · {label(m.quality,lang)}</option>)}
         </select>
       </label>
       {!chosen && control(k)}
+      {k === 'respiratory_rate' && (!chosen ? control('observationSeconds') : <p data-testid="linked-breathing-duration">
+        {t('Observation duration from linked reading: ','連結量測的觀察秒數：')}{duration == null ? t('Not recorded','未記錄') : `${duration} s`}
+      </p>)}
       {k === 'temperature' && !chosen && <>{control('temperatureSite')}{control('temperatureMethod')}</>}
       {quality(k)}
     </div>
@@ -224,10 +267,17 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     if (k === 'neurological_assessment' || k === 'supplemental_oxygen') return choiceButtons(k)
     if (k === 'spo2_scale') return <>{choiceButtons(k)}{draft.fields.spo2_scale === 'scale2' && <>
       <p className="news-sub">{nameOf('scale2Documented', lang)}</p>{choiceButtons('scale2Documented')}</>}</>
-    if (k === 'respiratory_rate') return <>{slider(k)}
-      <label className="news-inline">{nameOf('observationSeconds', lang)} (s)<input type="number" min={1} step="1"
-        value={draft.fields.observationSeconds ?? ''} onChange={e => field('observationSeconds', e.target.value)}/></label>
-      {poorToggle(k)}</>
+    if (k === 'respiratory_rate') {
+      const linked = draft.links.respiratory_rate
+      const duration = linked ? candidates.respiratory_rate?.find(m => m.id === linked)?.context.observationDuration ??
+        (record?.measurementIds.respiratory_rate === linked ? record.linkedRecords.respiratory_rate?.observationSeconds : null) : null
+      return <>{measured(k)}
+        {linked ? <p data-testid="linked-breathing-duration">{t('Observation duration from linked reading: ', '連結量測的觀察秒數：')}
+          {duration == null ? t('Not recorded', '未記錄') : `${duration} s`}</p> :
+          <label className="news-inline">{nameOf('observationSeconds', lang)} (s)<input type="number" min={1} step="any"
+            value={draft.fields.observationSeconds ?? ''} onChange={e => field('observationSeconds', e.target.value)}/></label>}
+        {poorToggle(k)}</>
+    }
     return <>{measured(k)}
       {k === 'temperature' && !draft.links.temperature && choiceButtons('temperatureSite')}
       {k === 'temperature' && !draft.links.temperature ? <div className="news-pair">
@@ -272,11 +322,15 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
           <p>{t('Enter readings taken together at this time, or use records within five minutes. You can save a partial assessment.',
             '輸入同次、同時觀察的資料，或使用前後五分鐘內的量測。可先儲存已知項目，再回來補齊。')}</p>
           <p>{t('Training records · ACVPU 2017. Record the scale selected by the clinician.','合成訓練紀錄 · ACVPU 2017。血氧尺度依醫療人員指定紀錄填寫。')} <a href="https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/" target="_blank" rel="noreferrer">RCP NEWS2</a></p>
+          {configuration && <p>{t('Current scoring setting: ', '目前計分設定：')}{configurationText(configuration,lang)}</p>}
+          {configurationError && <p role="alert">{t('Could not load the current scoring setting.', '無法載入目前計分設定。')}
+            <button type="button" onClick={() => setRetry(n => n + 1)}>{t('Retry', '重試')}</button></p>}
           {record && <AssessmentStatus item={record} lang={lang}/>}
-          {record && <button className="secondary" type="button" onClick={() => ask(record.id)}>{t('Ask about this NEWS2 assessment','詢問助手這次評估還缺什麼')}</button>}
+          {record && <button className="secondary" type="button" onClick={() => ask(record.id)}>{t('Ask about this NEWS2 assessment','詢問助手這次 NEWS2 評估')}</button>}
           <button className="secondary" type="button" onClick={measure}>{t('Open vital-sign measurement form','開啟生命徵象量測表單')}</button>
         </details>
       </form>}
+      {!dirty && ready && <HealthReportPanel key={session.username} assessment={record} lang={lang} session={session} deny={deny} ask={askReport}/>}
     </section>
   }
   if (stepped) return phone()
@@ -289,9 +343,15 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
     </div>
     {loadError && <p role="alert">{t('Could not load assessments.','無法載入評估。')} <button onClick={() => setRetry(n => n+1)}>{t('Retry','重試')}</button></p>}
     {record && <div className="panel news-result"><AssessmentStatus item={record} lang={lang}/>
-      <button className="secondary" type="button" onClick={() => ask(record.id)}>{t('Ask about this NEWS2 assessment','詢問助手這次評估還缺什麼')}</button></div>}
+      <button className="secondary" type="button" onClick={() => ask(record.id)}>{t('Ask about this NEWS2 assessment','詢問助手這次 NEWS2 評估')}</button></div>}
     {ready && <form onSubmit={save} className="panel news-form">
       <fieldset disabled={busy}><legend>{t('Observations from this assessment','本次評估觀察')}</legend>
+        {configuration && <p className="news-config">{t('Current scoring setting: ','目前計分設定：')}{configurationText(configuration,lang)}
+          {configuration.requestedProfile && !configuration.enabled && ` (${configuration.requestedProfile})`}
+          <br/>{t('Saving uses the server setting at that time. Previously saved versions keep their scores.',
+            '儲存時採用當下的伺服器設定，已保存版本的分數保持不變。')}</p>}
+        {configurationError && <p role="alert">{t('Could not load the current scoring setting. The server determines it when saving.',
+          '無法載入目前計分設定；儲存時仍由伺服器判定。')} <button type="button" onClick={() => setRetry(n => n+1)}>{t('Retry','重試')}</button></p>}
         <label>{t('Observation time (UTC)','觀察時間（UTC）')}<input type="datetime-local" required disabled={draft.version > 0}
           value={draft.time} onChange={e => edit({ time: e.target.value })}/></label>
         <p>{t('Enter readings taken together at this time, or select matching records within five minutes. You can save a partial assessment.',
@@ -299,17 +359,19 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
         {candidateError && <p role="alert">{t('Could not load linked readings.','無法載入可連結量測。')} <button type="button" onClick={() => setRetry(n => n+1)}>{t('Retry','重試')}</button></p>}
         <div className="news-grid">{vitalCodes.map(vital)}</div>
         <div className="news-grid">
-          <div className="news-vital">{control('respiratory_rate')}{control('observationSeconds')}{quality('respiratory_rate')}</div>
           <div className="news-vital">{control('neurological_assessment')}{control('supplemental_oxygen')}</div>
           <div className="news-vital">{control('spo2_scale')}{draft.fields.spo2_scale === 'scale2' && control('scale2Documented')}</div>
         </div>
         <p>{t('Training records · ACVPU 2017. Record the scale selected by the clinician.','合成訓練紀錄 · ACVPU 2017。血氧尺度依醫療人員指定紀錄填寫。')} <a href="https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/" target="_blank" rel="noreferrer">RCP NEWS2</a></p>
+        <p>{t('Training input policy: round half up to whole numbers, or 0.1°C for temperature. Original values are kept; missing or unusable inputs prevent a full total.',
+          '訓練輸入政策：數值四捨五入至整數，體溫至 0.1°C；原值保留。缺值或輸入不可用時，不提供完整總分。')}</p>
         <button className="primary" type="submit" disabled={busy || (!!record && !dirty)}>{t('Save assessment','儲存評估')}</button>
       </fieldset>
       {error && <p role="alert">{error === 'conflict' ? t('Another session updated this assessment. Reload its latest version.','另一個工作階段已更新評估。請載入最新版本。') :
         t('Could not save. Check the time and inputs, then retry.','儲存失敗，請檢查觀察時間和輸入後重試。')}
         {error === 'conflict' && <button type="button" onClick={() => select(draft.id)}>{t('Reload','重新載入')}</button>}</p>}
     </form>}
+    {!dirty && ready && <HealthReportPanel key={session.username} assessment={record} lang={lang} session={session} deny={deny} ask={askReport}/>}
     {!dirty && <button className="secondary" type="button" onClick={measure}>{t('Open vital-sign measurement form','開啟生命徵象量測表單')}</button>}
   </section>
 }

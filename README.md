@@ -55,9 +55,9 @@ flowchart TD
 
 ### Current implementation
 
-- **Layer 1** includes synthetic heart-rate alerts, NEWS2 observation records, and completeness and quality checks. The NEWS2 score remains empty while its scoring configuration is awaiting activation.
-- **Layer 2** compares readings with matching data from the preceding seven days and calculates Z-scores and EWMA. Formal reference approval, freezing and rebuilding remain part of the architecture roadmap.
-- **Layer 3** provides personal-record queries, local knowledge retrieval, citations and model-answer verification. Full integration of all three layers' outputs remains an expansion of the design.
+- **Layer 1** includes synthetic heart-rate alerts, NEWS2 completeness and quality checks, seven component scores and a complete total under a versioned training profile. Respiratory measurements link their original observation duration. Saved versions retain their scores and input-normalization policy; missing or unusable inputs leave the full total unavailable.
+- **Layer 2** supports immutable baselines for heart rate, SpO₂, respiratory rate, systolic pressure, diastolic pressure and temperature. Candidates can be reviewed and activated, frozen, resumed, rebuilt or retired, with exclusion periods and an audit history. Version-linked Z-scores and EWMA are saved per measurement; explicit recalculation creates a new revision without rewriting historical evidence. The v3 demo prepares six resting baselines per crew member (30 total) from `[preparedAt − 14 days, preparedAt − 7 days)`.
+- **Layer 3** provides authorized personal-record queries, local knowledge retrieval, citations and model-answer verification. Saved three-layer reports pin the NEWS2 version, matching measurements and baseline analyses, rule evidence and knowledge versions. The assistant can explain the same report and preserve it across follow-up questions; unavailable or rejected model output falls back to local evidence. These sources remain separate, with no aggregate health score; synthetic training results do not establish clinical accuracy or operational readiness.
 
 ## Start the health system on Windows
 
@@ -105,14 +105,17 @@ With only the 3D service running, you can also explore four scripted scenarios. 
 
 - **Space radiation monitoring:** personal views show prior exposure, shared increment and total; monitoring staff can view all five crew and control simulated events. The cabin's **More → Open radiation monitor** reads the same persisted backend mission. Reloading does not reset exposure. All radiation values are Simulation.
 - **Historical dataset import:** sign in as `monitor`, open `/system`, choose a JSON file, review its summary and import it. Measurements, body scans and radiation archives are supported. Imported radiation archives are displayed separately from the live mission.
-- **Telemetry playback fallback:** start the medical and cabin services, then open `http://127.0.0.1:4173/playback.html` to loop synthetic readings into the crew phones and shared board. Stopping playback lets readings become stale while preserving history.
+- **30-day history + 300-second playback:** prepare a separate candidate database using `demo_prepare.py --dataset ... --output ...` as described in the [medical guide](health-system/README.md#30-day-history-and-five-minute-playback). After the medical service uses a prepared database, a `monitor` manually starts or stops one run from `http://127.0.0.1:4173/playback.html`. The backend owns the clock and saves progress; refresh does not restart it. Connected mode has no loop, pause or speed control. History is anchored to `preparedAt`, playback to `startedAt`; any real gap between them remains visible.
 
 | File | Purpose |
 | --- | --- |
-| [60-second dataset](astro-hiyoko-demo/data/crew-health-sample60.zip) | Five-crew synthetic telemetry loaded directly by the player: 300 packets and 1,215 metrics per cycle. Demonstrates the data flow without hardware; it is not the historical JSON import format. |
+| [v3 demonstration ZIP](output/health-demo-v3/crew-demo-v3.zip) | Five fictional crew, 30 days of history, six baseline metrics and one 300-second script. See the [data contract](health-system/DATA_DEMO_FORMAT.zh-TW.md). Preparation validates hashes and builds a new candidate database. |
+| [Legacy 60-second dataset](astro-hiyoko-demo/data/crew-health-sample60.zip) | Retained for the separate `health-system/dataset_player.py` CLI. The current `/playback.html` does not load this ZIP. |
 | [Historical JSON example](health-system/examples/crew-dataset.example.json) | Select this file in the monitoring station's dataset importer to demonstrate the `crew-dataset/1` historical format. |
 
 `health-system/backend/radiation*.py` implements accumulation, persistence and APIs; `dataset_import.py` and `body_import.py` handle imports. `RadiationPanel.tsx` and `DatasetImport.tsx` provide the medical UI; `astro-hiyoko-demo/radiation-monitor.js` connects the cabin display. See the [health-system guide](health-system/README.md) and [cabin guide](astro-hiyoko-demo/README.md).
+
+Playback status requires an authenticated session. Personal profiles and assessment summaries require the crew owner or `monitor`; start/stop requires `monitor` plus CSRF. Synthetic data and expected answers demonstrate software behavior, not medical performance; expected answers are test-only and are not runtime inputs.
 
 ## Hardware simulation
 

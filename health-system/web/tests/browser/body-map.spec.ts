@@ -16,6 +16,50 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test('body renderer stays responsive with a bounded postprocessing budget', async ({page}, info) => {
+  test.skip(info.project.name !== 'desktop')
+  await page.addInitScript(() => {
+    const original = WebGL2RenderingContext.prototype.texImage2D
+    const probe = window as unknown as {bodyFloatTargets: number}
+    probe.bodyFloatTargets = 0
+    WebGL2RenderingContext.prototype.texImage2D = function (...args: Parameters<typeof original>) {
+      if ([this.RGBA16F,this.RGBA32F].includes(args[2])) probe.bodyFloatTargets++
+      return original.apply(this,args)
+    }
+  })
+  await page.setViewportSize({width:1440,height:1000})
+  await login(page)
+  const started = Date.now()
+  await page.goto('/app/body-map')
+  await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
+  const openingMs = Date.now() - started
+  const profile = await page.locator('.body-canvas canvas').evaluate(async (canvas: HTMLCanvasElement) => {
+    const gl = canvas.getContext('webgl2')!
+    const debug = gl.getExtension('WEBGL_debug_renderer_info')
+    const frames: number[] = []
+    const start = performance.now()
+    let last = start
+    await new Promise<void>(resolve => {
+      const tick = (now: number) => {
+        frames.push(now-last); last=now
+        if(now-start<3000) requestAnimationFrame(tick)
+        else resolve()
+      }
+      requestAnimationFrame(tick)
+    })
+    return {gpu:debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable',
+      width:canvas.width,height:canvas.height,frames:frames.length,
+      maxFrameMs:Math.max(...frames),meanFrameMs:frames.reduce((a,b)=>a+b,0)/frames.length}
+  })
+  console.log(JSON.stringify({openingMs,...profile}))
+  const selected = Date.now()
+  await page.getByTestId('body-layer-muscle').click()
+  await expect(page.getByTestId('body-layer-muscle')).toHaveAttribute('aria-pressed','true')
+  console.log(JSON.stringify({selectionMs:Date.now()-selected}))
+  expect(profile.maxFrameMs).toBeLessThan(500)
+  expect(await page.evaluate(() => (window as unknown as {bodyFloatTargets:number}).bodyFloatTargets)).toBeLessThanOrEqual(2)
+})
+
 async function login(page: Page, username = 'mira') {
   await page.addInitScript(() => sessionStorage.setItem('orbital.lang','zh-TW'))
   const response = await page.request.post('/v1/auth/login', {data:{username,password:'body-e2e-only'}})
@@ -32,6 +76,60 @@ async function seed(page: Page, csrf: string, preset: string) {
   expect(response.status()).toBe(201)
   return (await response.json()).data.scan
 }
+
+test('failed initial history recovers on the next regular poll', async ({page}) => {
+  const token = await login(page)
+  const baseline = await seed(page,token,'baseline')
+  await seed(page,token,'training_strain')
+  let historyRequests = 0
+  await page.route('**/v1/body-scans?limit=20',route => {
+    historyRequests++
+    return historyRequests === 1 ? route.fulfill({status:503,body:'Unavailable'}) : route.continue()
+  })
+  await page.goto('/app/body-map')
+  await expect(page.getByRole('button',{name:'重新連線',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'歷史比較',exact:true}).click()
+  const previous = page.getByLabel('目前掃描',{exact:true}).locator(`option[value="${baseline.id}"]`)
+  await expect(previous).toHaveCount(0)
+  // No reload, visibility event or manual retry: the normal 10-second poll must recover history.
+  await expect(previous).toHaveCount(1,{timeout:15000})
+  await expect(page.getByRole('button',{name:'重新連線',exact:true})).toHaveCount(0)
+  await page.getByLabel('目前掃描',{exact:true}).selectOption(baseline.id)
+  await expect(page.getByTestId('body-composition')).toContainText('32.4')
+  expect(historyRequests).toBeGreaterThanOrEqual(2)
+})
+
+test('failed body page chunk retains navigation and recovers after reload', async ({page}) => {
+  await login(page)
+  const chunk = '**/assets/BodyMap-*.js'
+  await page.route(chunk,route => route.abort())
+  await page.goto('/app/body-map')
+  await expect(page.getByTestId('body-page-unavailable')).toBeVisible()
+  await page.getByRole('button',{name:'返回個人總覽',exact:true}).click()
+  await expect(page).toHaveURL(/\/app\/overview$/)
+  if ((page.viewportSize()?.width ?? 0) <= 650) await expect(page.getByRole('button',{name:'身體全息圖',exact:true})).toBeVisible()
+  else await expect(page.getByTestId('body-overview-card')).toBeVisible()
+  await page.unroute(chunk)
+  await page.goto('/app/body-map')
+  await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
+})
+
+test('failed body renderer chunk keeps scan data and interactive 2D view', async ({page}) => {
+  const token = await login(page)
+  await seed(page,token,'training_strain')
+  const chunk = '**/assets/BodyScene-*.js'
+  await page.route(chunk,route => route.abort())
+  await page.goto('/app/body-map')
+  await expect(page.getByTestId('body-renderer-unavailable')).toBeVisible()
+  await expect(page.getByTestId('body-composition')).toContainText('32.0')
+  await page.getByRole('button',{name:'左大腿',exact:true}).click()
+  await expect(page.getByTestId('body-region-title')).toHaveText('左大腿')
+  await expect(page.locator('.body-finding')).toContainText('肌肉拉傷')
+  await page.unroute(chunk)
+  await page.getByRole('button',{name:'重新載入頁面',exact:true}).click()
+  await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
+  await expect(page.getByTestId('body-region-title')).toHaveText('左大腿')
+})
 
 test('mobile hologram selects real meshes, changes layers and compares saved scans', async ({ page }, info) => {
   const errors:string[]=[]
@@ -194,10 +292,14 @@ test('hologram projection can pause and honors reduced motion without disabling 
   await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
   await expect(page.getByRole('button',{name:'播放投影動態',exact:true})).toBeVisible()
   const canvas=page.locator('.body-canvas canvas')
-  const still=await canvas.screenshot()
-  // Check stability over several intended animation ticks, not just one frame.
-  await page.waitForTimeout(200)
-  expect((await canvas.screenshot()).equals(still)).toBe(true)
+  let still=await canvas.screenshot()
+  // Model readiness precedes the first paint and final mobile layout resize.
+  // Wait for those to settle, then require stability across several animation ticks.
+  await expect.poll(async()=>{
+    still=await canvas.screenshot()
+    await page.waitForTimeout(200)
+    return (await canvas.screenshot()).equals(still)
+  }).toBe(true)
   await page.emulateMedia({reducedMotion:'no-preference'})
   await page.getByRole('button',{name:'播放投影動態',exact:true}).click()
   await expect.poll(async()=>(await canvas.screenshot()).equals(still)).toBe(false)

@@ -12,7 +12,7 @@ type Turn = {
 }
 type History = { items: Turn[]; conversationId: string | null }
 type Props = { session: Session; lang: Lang; deny: () => void; openAid: (id: AidTarget) => void
-  assessmentId?: string; clearAssessment: () => void }
+  assessmentId?: string; analysisId?: string; reportId?: string; clearAssessment: () => void }
 
 function responsePreview(text: string) {
   const paragraph = text.split(/\n+/).find(line => line.trim()) ?? text
@@ -21,10 +21,12 @@ function responsePreview(text: string) {
   return sentenceEnd >= 0 ? paragraph.slice(0, sentenceEnd + 1) : paragraph
 }
 
-export function Chat({ session, lang, deny, openAid, assessmentId, clearAssessment }: Props) {
+export function Chat({ session, lang, deny, openAid, assessmentId, analysisId, reportId, clearAssessment }: Props) {
   const [items, setItems] = useState<Turn[]>([])
   const [conversation, setConversation] = useState<string | null>(null)
-  const [question, setQuestion] = useState(assessmentId ? tx(lang, 'What is missing from this NEWS2 assessment?', '這次 NEWS2 評估還缺哪些資料？') : '')
+  const [question, setQuestion] = useState(reportId ? tx(lang, 'Explain this saved three-layer report and its evidence limits.', '請說明這份已保存的三層評估與資料限制。') :
+    analysisId ? tx(lang, 'Explain this saved personal-baseline analysis.', '請說明這筆已保存的個人基準分析。') :
+    assessmentId ? tx(lang, 'Explain the saved score and missing inputs in this NEWS2 assessment.', '請說明這次 NEWS2 評估已保存的分數與缺漏資料。') : '')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(false)
@@ -87,7 +89,8 @@ export function Chat({ session, lang, deny, openAid, assessmentId, clearAssessme
     try {
       const turn = await api<Turn>('/assistant/query', {
         body: { question: text, language: command.current.lang, conversationId: conversation, commandId: command.current.id,
-          assessmentId: /news\s*2|評估|assessment|有缺|還缺|missing/i.test(text) ? assessmentId : undefined },
+          assessmentId: /news\s*2|評估|assessment|有缺|還缺|missing/i.test(text) ? assessmentId : undefined,
+          analysisId, reportId },
         token: session.csrfToken, signal: controller.signal,
       })
       if (controller.signal.aborted) return

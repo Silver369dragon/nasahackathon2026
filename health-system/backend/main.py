@@ -177,8 +177,11 @@ def configured_path() -> Path:
 
 
 def create_app(db_path: Path | str | None = None) -> FastAPI:
+    from .demo_runtime import DemoRuntime, register_demo
+
     path = Path(db_path) if db_path is not None else configured_path()
     radiation = RadiationRuntime(path)
+    demonstration = DemoRuntime(path)
 
     async def radiation_clock():
         while True:
@@ -202,6 +205,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         application.state.secret = await run_in_threadpool(initialize, path)
         await run_in_threadpool(initialize_knowledge, path)
         await run_in_threadpool(initialize_chat, path)
+        await run_in_threadpool(demonstration.initialize)
         await run_in_threadpool(upkeep, path)
         await run_in_threadpool(radiation.checkpoint)
         timer = asyncio.create_task(expire())
@@ -210,6 +214,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         try:
             yield
         finally:
+            await run_in_threadpool(demonstration.shutdown)
             timer.cancel()
             radiation_timer.cancel()
             with suppress(asyncio.CancelledError):
@@ -228,6 +233,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     app = FastAPI(title="Crew Health Training", version="1.3", lifespan=lifespan)
     app.state.db_path = path
     app.state.radiation = radiation
+    app.state.demonstration = demonstration
     app.state.chat_jobs = set()
     app.add_middleware(PacketLimit)
 
@@ -339,11 +345,14 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
 
     register_emergencies(app, path)
     register_push(app, path)
+    from .baselines import register_baselines
+    register_baselines(app, path)
     register_trends(app, path)
     register_news2(app, path)
     register_body_scans(app, path)
     register_radiation_routes(app, path, radiation)
     register_dataset_import(app, path, radiation)
+    register_demo(app, path, demonstration)
     register_tasks(app, path)
     register_reads(app, path)
     register_knowledge(app, path)
