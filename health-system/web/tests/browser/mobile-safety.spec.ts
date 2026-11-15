@@ -22,11 +22,19 @@ async function quietFeed(page: Page, emergencies: object[] = []) {
 const popup = (page: Page) => page.getByRole('alertdialog')
 const number = (page: Page, name: string) => page.getByRole('spinbutton', { name, exact: true })
 
-test('assessment summary opens the dedicated radiation page', async ({ page }) => {
+test('home uses the appropriate layout and opens the dedicated radiation page', async ({ page }) => {
   await login(page)
   await quietFeed(page)
   await page.goto('/app/overview')
-  await page.getByTestId('summary-radiation').getByRole('button', { name: '查看輻射詳情', exact: true }).click()
+  if ((page.viewportSize()?.width ?? 0) <= 650) {
+    await expect(page.locator('.mobile-home')).toBeVisible()
+    await expect(page.getByTestId('demo-health-summary')).toHaveCount(0)
+    await expect(page.locator('.vital-tile')).toHaveCount(4)
+    await page.getByRole('button', { name: '更多', exact: true }).click()
+    await page.getByRole('button', { name: '輻射監測', exact: true }).click()
+  } else {
+    await page.getByTestId('summary-radiation').getByRole('button', { name: '查看輻射詳情', exact: true }).click()
+  }
   await expect(page).toHaveURL(/\/app\/radiation$/)
   await expect(page.getByTestId('radiation-rate')).toBeVisible()
 })

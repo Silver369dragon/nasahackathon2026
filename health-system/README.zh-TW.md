@@ -97,6 +97,23 @@ FastAPI 從伺服器環境或本資料夾的 `.env.local` 讀取 `OPENAI_API_KEY
 
 Windows 預設資料庫位於 `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`。若要改用特定資料庫，可在啟動服務前將 `HEALTH_DB_PATH` 設為本機非同步資料夾中的完整檔案路徑。一般工作區使用 `runId=null`，量測成功後才會同步至其他畫面。瀏覽器以 session 驗證，人工寫入另需 CSRF token，Mock 使用個別裝置 Bearer 憑證。
 
+### 已儲存紀錄快照（2026-11-15）
+
+[資料庫快照 ZIP](examples/training-records-20261115.zip) 保存當時本機資料庫的 650,930 筆量測、30 組固定基準、145,530 筆統計分析、900 筆 NEWS2 版本、25 筆身體掃描及其他已儲存紀錄。[驗證清單](examples/training-records-20261115.manifest.json) 列出各表筆數、保留紀錄的指紋、SHA-256 與完整性檢查結果。這是固定時間的合成訓練紀錄快照，後續本機操作不會自動更新 Git 中的檔案。
+
+快照已移除登入 session、推播訂閱／待送佇列及本機簽署金鑰，保留的紀錄與匯出副本逐表比對一致；展示包路徑改為儲存庫相對路徑。還原後需重新登入及啟用裝置通知，金鑰由程式在本機重新建立。
+
+ZIP 使用 LZMA 壓縮，請用下列 Python 指令解壓縮。完成首次安裝後，在 `health-system` 資料夾的 PowerShell 執行，解壓縮至新的本機目錄並啟動。解壓縮後需要約 1.3 GB 空間；若目的目錄已存在，請換新名稱，以保留既有資料。
+
+```powershell
+$restore = Join-Path $env:LOCALAPPDATA 'NasaHealthSystem\snapshot-20261115'
+New-Item -ItemType Directory -Path $restore -ErrorAction Stop | Out-Null
+.\.venv\Scripts\python.exe -m zipfile -e .\examples\training-records-20261115.zip $restore
+if ($LASTEXITCODE -ne 0) { throw '資料庫快照解壓縮失敗。' }
+$env:HEALTH_DB_PATH = Join-Path $restore 'training-records-20261115.sqlite3'
+.\start.cmd
+```
+
 可在 [API 文件](http://127.0.0.1:8000/docs) 查看端點，或在 [readiness](http://127.0.0.1:8000/v1/health/ready) 查看後端、知識庫及模型設定狀態。
 
 ### NEWS2 健康評估
