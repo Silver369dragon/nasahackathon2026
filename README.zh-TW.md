@@ -113,3 +113,8 @@ npm.cmd start
 | [歷史 JSON 範例](health-system/examples/crew-dataset.example.json) | 在監測站的資料匯入功能選取，示範 `crew-dataset/1` 格式的歷史資料。 |
 
 程式分工：`health-system/backend/radiation*.py` 負責輻射累加、保存與 API；`dataset_import.py`、`body_import.py` 負責匯入；`health-system/web/src/RadiationPanel.tsx`、`DatasetImport.tsx` 提供操作介面；`astro-hiyoko-demo/radiation-monitor.js` 將輻射資訊接入船艙。操作細節見[醫療系統 README](health-system/README.zh-TW.md)與[3D README](astro-hiyoko-demo/README.zh-TW.md)。
+## 硬體模擬
+
+- **Wokwi 電路模擬：** 以 ESP32 為基礎的生理感測系統互動式模擬，包含感測器接線與韌體程式。
+
+  [Wokwi 模擬專案](https://wokwi.com/projects/480433596780917761)
