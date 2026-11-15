@@ -524,7 +524,7 @@ function Console({
             )}
             {isBoard && <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny} board/>}
           </div>}
-          {(path === paths.personal || (path === paths.system && session.roles.includes('monitor'))) &&
+          {((path === paths.personal && !mobileHome) || (path === paths.system && session.roles.includes('monitor'))) &&
             <DemoSummary session={session} lang={lang} deny={deny} crew={feed.rows} navigate={go}
               askAnalysis={id => { setChatAnalysis(id); setChatAssessment(undefined); setChatReport(undefined); go(paths.chat) }}
               askAssessment={id => { setChatAssessment(id); setChatAnalysis(undefined); setChatReport(undefined); go(paths.chat) }}/>}
