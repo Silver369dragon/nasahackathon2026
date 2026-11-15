@@ -210,7 +210,7 @@
 .vital-tile { --tone: #2f7a47; --tone-bg: #e3f1e6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-height: 132px; padding: 8px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); text-align: center; }
 .vital-tile.outside { --tone: #a55f12; --tone-bg: #f8eac7; border-color: #ed9942; }
-.vital-tile.unusable, .vital-tile.none { --tone: #6d7f7c; --tone-bg: #e7ebe8; }
+.vital-tile.unusable, .vital-tile.stale, .vital-tile.none { --tone: #6d7f7c; --tone-bg: #e7ebe8; }
 .vital-icon { color: var(--tone); }
 .vital-value { font: 800 34px/1.05 Barlow, sans-serif; color: var(--tone); }
 .vital-tile.inside .vital-value { color: var(--ink); }
