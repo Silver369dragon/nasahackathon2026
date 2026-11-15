@@ -208,7 +208,7 @@ function PhoneTrends({ lang, deny, metric, period, data, pairData, error, valid,
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const groups = data?.series ?? []
   const group = groups.find(g => seriesKey(g) === sourceKey) ?? groups[0]
-  const second = group && pairData?.series.find(g => g.source === group.source && g.method === group.method)
+  const second = group && pairData?.series.find(g => seriesKey(g) === seriesKey(group))
   const unit = group ? displayUnit(group.unit, metric) : ''
   const band = referenceBand[metric]
   const ref = group?.reference

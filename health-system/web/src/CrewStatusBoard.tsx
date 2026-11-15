@@ -17,19 +17,22 @@ const watched: [string, [string, string], [string, string]][] = [
 export function crewStatus(crew: CrewSummary, lang: Lang): { status: Status; reason: string } {
   const t = (pair: [string, string]) => tx(lang, pair[0], pair[1])
   const notes: string[] = []
-  let readings = 0, unusable = 0
+  let missing = 0, unclear = 0
   for (const [code, low, high] of watched) {
-    const record = crew.metricCards.find(card => card.metricCode === code)?.latest
-    if (!record) continue
-    readings++
-    if (record.quality !== 'good' || typeof record.value !== 'number') { unusable++; continue }
+    const card = crew.metricCards.find(card => card.metricCode === code)
+    const record = card?.latest
+    if (!record) { missing++; continue }
+    if (record.quality !== 'good' || typeof record.value !== 'number') { unclear++; continue }
     const band = referenceBand[code]
     if (record.value < band[0]) notes.push(t(low))
     else if (record.value > band[1]) notes.push(t(high))
+    else if (card.freshness === 'stale') unclear++
   }
+  // Only call someone stable when every watched indicator has a current, usable, in-range reading.
   if (notes.length) return { status: 'attention', reason: notes.join(tx(lang, ', ', '、')) }
-  if (!readings) return { status: 'unknown', reason: tx(lang, 'No readings yet', '尚無量測') }
-  if (unusable) return { status: 'unknown', reason: tx(lang, 'Some readings need checking', '部分量測需確認') }
+  if (missing === watched.length) return { status: 'unknown', reason: tx(lang, 'No readings yet', '尚無量測') }
+  if (missing || unclear) return { status: 'unknown', reason: tx(lang,
+    `${missing + unclear} of ${watched.length} readings missing or need checking`, `${watched.length} 項中有 ${missing + unclear} 項缺少或需確認`) }
   return { status: 'normal', reason: tx(lang, 'All indicators stable', '所有數值穩定') }
 }
 
@@ -37,12 +40,17 @@ export function CrewStatusBoard({ rows, lang }: { rows: CrewSummary[]; lang: Lan
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const statuses = rows.map(crew => ({ crew, ...crewStatus(crew, lang) }))
   const attention = statuses.filter(s => s.status === 'attention').length
+  const unknown = statuses.filter(s => s.status === 'unknown').length
+  // Never say "all clear" unless every crew member actually has a normal status.
+  const summary: Status = attention ? 'attention' : unknown ? 'unknown' : 'normal'
   const pill: Record<Status, string> = { normal: t('Normal', '正常'), attention: t('Check', '需注意'), unknown: t('No data', '無資料') }
   return <section className="panel crew-status-board" aria-label={t('Crew health status', '船員健康狀態')}>
     <header>
       <h2>{t('Crew health status', '船員健康狀態')}</h2>
-      <span className={'crew-status-pill ' + (attention ? 'attention' : 'normal')}>
-        {attention ? t(`${attention} ${attention === 1 ? 'needs' : 'need'} attention`, `${attention} 位需注意`) : t('All clear', '全員正常')}</span>
+      <span className={'crew-status-pill ' + summary}>
+        {attention ? t(`${attention} ${attention === 1 ? 'needs' : 'need'} attention`, `${attention} 位需注意`)
+          : !rows.length || unknown === rows.length ? t('No data', '無資料')
+          : unknown ? t(`${unknown} without full data`, `${unknown} 位資料不完整`) : t('All clear', '全員正常')}</span>
     </header>
     <ul>{statuses.map(({ crew, status, reason }) => <li key={crew.crewId} className={status} data-testid={'crew-' + crew.crewId}>
       <span className="crew-status-avatar"><UserRound size={24} aria-hidden="true"/></span>

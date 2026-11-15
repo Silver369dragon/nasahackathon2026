@@ -9,13 +9,16 @@ import { referenceBand } from './Trends'
 // Phone home: four vital tiles with an icon, a large colored value and a status pill.
 // Blood oxygen is drawn as a ring; heart rate gets a small pulse line.
 // Status uses the NEWS2 training reference range (see Trends.tsx), not a clinical threshold.
-type State = 'inside' | 'outside' | 'unusable' | 'none'
+// A stale reading (the live sensor stopped updating) never shows as normal; an out-of-range value
+// stays flagged even when stale, since the last thing we saw was abnormal.
+type State = 'inside' | 'outside' | 'unusable' | 'stale' | 'none'
 
-function stateOf(m: Measurement | null): State {
+function stateOf(m: Measurement | null, cards: CrewSummary['metricCards']): State {
   if (!m) return 'none'
   if (m.quality !== 'good' || m.value === null || typeof m.value !== 'number') return 'unusable'
   const band = referenceBand[m.metricCode]
-  return band && (m.value < band[0] || m.value > band[1]) ? 'outside' : 'inside'
+  if (band && (m.value < band[0] || m.value > band[1])) return 'outside'
+  return cards.find(c => c.metricCode === m.metricCode)?.freshness === 'stale' ? 'stale' : 'inside'
 }
 
 // Early warning: the last three valid readings moved the same way twice in a row and the newest
@@ -201,15 +204,15 @@ export function MobileVitals({ crew, lang, revision, deny, openTraining }: {
       text: tx(lang, ...advice[code][trends[code]!]) })),
   ]
   const pills: Record<State, string> = {
-    inside: t('Normal', '正常'), outside: t('Check', '超出範圍'), unusable: t('Unusable', '品質不足'), none: t('No data', '尚無資料'),
+    inside: t('Normal', '正常'), outside: t('Check', '超出範圍'), unusable: t('Unusable', '品質不足'), stale: t('Stale', '已過期'), none: t('No data', '尚無資料'),
   }
   const statusWords: Record<State, string> = {
-    inside: t('normal', '正常'), outside: t('out of range', '超出範圍'), unusable: t('reading unusable', '量測品質不足'), none: t('no data', '尚無資料'),
+    inside: t('normal', '正常'), outside: t('out of range', '超出範圍'), unusable: t('reading unusable', '量測品質不足'), stale: t('reading is out of date', '數值已過期'), none: t('no data', '尚無資料'),
   }
   const spoken = [
     ...metrics.map(metric => {
       const records = selectReadings(crew.metricCards, metric, 'latest')
-      const state = stateOf(records.find(r => r !== null) ?? null)
+      const state = stateOf(records.find(r => r !== null) ?? null, crew.metricCards)
       const [first, second] = records.map(r => prettyValue(r, false, lang))
       const value = metric.code === 'blood_pressure'
         ? t(`${first} over ${second}`, `收縮壓 ${first}，舒張壓 ${second}`) : first
@@ -227,7 +230,7 @@ export function MobileVitals({ crew, lang, revision, deny, openTraining }: {
       const records = selectReadings(crew.metricCards, metric, 'latest')
       const main = records[0]
       const state = metric.code === 'blood_pressure' && records[0]
-        ? stateOf(records[0]) : stateOf(records.find(r => r !== null) ?? null)
+        ? stateOf(records[0], crew.metricCards) : stateOf(records.find(r => r !== null) ?? null, crew.metricCards)
       const value = records.some(r => r) ? records.map(r => prettyValue(r, false, lang)).join('/') : '—'
       const Icon = metricIcons[metric.code]
       const unit = metric.code === 'temperature' ? '°C' : metric.unit

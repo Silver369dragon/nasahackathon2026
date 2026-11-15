@@ -267,7 +267,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
           t('Could not save. Check the time and inputs, then retry.','儲存失敗，請檢查觀察時間和輸入後重試。')}
           {error === 'conflict' && <button type="button" onClick={() => select(draft.id)}>{t('Reload','重新載入')}</button>}</p>}
         <details className="news-help"><summary>{record ? t('Time, notes and result', '時間、說明與評估結果') : t('Time and notes', '時間與說明')}</summary>
-          <label>{t('Observation time (UTC)','觀察時間（UTC）')}<input type="datetime-local" required disabled={draft.version > 0}
+          <label>{t('Observation time (UTC)','觀察時間（UTC）')}<input type="datetime-local" required disabled={busy || draft.version > 0}
             value={draft.time} onChange={e => edit({ time: e.target.value })}/></label>
           <p>{t('Enter readings taken together at this time, or use records within five minutes. You can save a partial assessment.',
             '輸入同次、同時觀察的資料，或使用前後五分鐘內的量測。可先儲存已知項目，再回來補齊。')}</p>
