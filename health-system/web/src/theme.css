@@ -1,0 +1,15 @@
+/* Dark theme for the crew view. The whole page is inverted with a filter so every existing
+   screen follows; photos, video, the 3D body canvas and panels that are already dark are
+   inverted back so they keep their real colors. */
+/* The filter inverts the page background too, so white here ends up black on screen. */
+html[data-theme], html[data-theme] body { background: #fff; }
+html[data-theme='dark'] { filter: invert(1) hue-rotate(180deg); }
+html[data-theme='dark'] :is(img, video, canvas, iframe) { filter: invert(1) hue-rotate(180deg); }
+/* Keep help buttons a true, strong red. */
+html[data-theme='dark'] :is(.mobile-help, .help-hero, .aid-help, .emergency-bell, .emergency-popup-aid) { filter: invert(1) hue-rotate(180deg); }
+/* Areas that are already dark (top bar, side menu, dark hero, body panels) stay dark. */
+html[data-theme='dark'] :is(.rail, .page-hero, .body-home-card, .body-console, .task-progress-overview) { filter: invert(1) hue-rotate(180deg); }
+html[data-theme] :is(.rail, .page-hero, .body-home-card, .body-console, .task-progress-overview) :is(img, video, canvas, iframe) { filter: none; }
+
+.theme-button { gap: 4px; white-space: nowrap; }
+@media (max-width: 650px) { .theme-button { font-size: 10px; padding: 4px 6px; } }

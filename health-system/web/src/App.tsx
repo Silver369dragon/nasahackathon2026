@@ -51,6 +51,7 @@ import { DatasetImport } from './DatasetImport'
 import { HistoryTimeline } from './HistoryTimeline'
 import { MobileVitals } from './MobileVitals'
 import { CrewStatusBoard } from './CrewStatusBoard'
+import { ThemeButton, useCrewTheme } from './Theme'
 import { MobileBack, MobileHome, MobileMore, useMobile } from './MobileHome'
 import './style.css'
 
@@ -299,6 +300,7 @@ function Console({
   // Crew view on any screen size uses the visual components (tiles, colored statuses, pop-up);
   // the tap-to-open screen flow above stays phone-only.
   const visual = personal
+  const crewTheme = useCrewTheme(personal)
   const nav = [
     ...(session.roles.includes('crew') && session.crewId
       ? [
@@ -422,6 +424,7 @@ function Console({
             {visual && <EmergencyAlert crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username}
               crewId={session.crewId} openAid={() => go(paths.aid)}/>}
             <Clock />
+            {personal && <ThemeButton lang={lang} {...crewTheme} />}
             <Language lang={lang} change={toggleLang} />
             {isBoard && (
               <>
@@ -519,7 +522,7 @@ function Console({
           </div>}
           {visual && path === paths.personal && !mobileHome && crew && <>
             <SectionTitle text={t('Vital signs', '生命徵象')} />
-            <MobileVitals crew={crew} lang={lang} />
+            <MobileVitals crew={crew} lang={lang} revision={feed.historyRevision[crew.crewId]} deny={deny} openTraining={() => go(paths.tasks)} />
           </>}
           {path === paths.personal && !mobileHome && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
           {path === paths.system && session.roles.includes('monitor') && <DatasetImport session={session} lang={lang} deny={deny} />}
@@ -608,7 +611,7 @@ function Console({
               {path !== paths.history && !(visual && path === paths.personal && !mobileHome) && (
                 <>
                   <SectionTitle text={t('Vital signs', '生命徵象')} />
-                  {mobileHome ? <MobileVitals crew={crew} lang={lang} /> : <div className="metric-grid">
+                  {mobileHome ? <MobileVitals crew={crew} lang={lang} revision={feed.historyRevision[crew.crewId]} deny={deny} openTraining={() => go(paths.tasks)} /> : <div className="metric-grid">
                     {metrics.map((m) => (
                       <Reading key={m.code} crew={crew} metric={m} lang={lang} />
                     ))}
