@@ -171,9 +171,10 @@ function BadgeSummary({ plan, lang }: { plan: Plan; lang: Lang }) {
   </ul>
 }
 
-export function PersonalTraining({ lang, session, refreshToken, deny, showTasks, compact = false, goMeasure }: CommonProps & {
-  session: Session; showTasks: boolean; compact?: boolean; goMeasure: () => void
+export function PersonalTraining({ lang, session, refreshToken, deny, showTasks, compact = false, tabbed = false, goMeasure }: CommonProps & {
+  session: Session; showTasks: boolean; compact?: boolean; tabbed?: boolean; goMeasure: () => void
 }) {
+  const [picked, setPicked] = useState<Task['kind'] | 'history' | null>(null)
   const { data: plan, failed, reload } = useTrainingData<Plan>('/tasks', refreshToken, deny)
   const [busy, setBusy] = useState(false)
   const [issue, setIssue] = useState<'conflict' | 'rejected' | 'unknown' | null>(null)
@@ -232,13 +233,51 @@ export function PersonalTraining({ lang, session, refreshToken, deny, showTasks,
           <strong>{plan.items.filter(task => task.status === 'completed').length}<small>/{plan.items.length}</small></strong></div>
           <div><h3>{t('Daily progress', '每日進度')}</h3><p>{t('Tasks completed', '已完成任務')}</p></div>
           <BadgeSummary plan={plan} lang={lang}/></div>
-        <details className="task-details" open={compact ? undefined : true}><summary>{t('Your tasks', '你的任務')}</summary>
+        {tabbed ? <TaskTabs plan={plan} lang={lang} picked={picked} pick={setPicked}
+          render={task => <TaskCard key={task.id} task={task} lang={lang} locked={busy} run={run} goMeasure={goMeasure}/>}
+          history={<Progress plan={plan} lang={lang}/>}/>
+        : <details className="task-details" open={compact ? undefined : true}><summary>{t('Your tasks', '你的任務')}</summary>
         <div className="training-grid">{plan.items.map(task => <TaskCard key={task.id} task={task} lang={lang}
           locked={busy} run={run} goMeasure={goMeasure}/>)}</div>
-        </details>
-        <details className="disclosure"><summary>{t('Training history & badges', '訓練歷史與徽章')}</summary><Progress plan={plan} lang={lang}/></details>
+        </details>}
+        {!tabbed && <details className="disclosure"><summary>{t('Training history & badges', '訓練歷史與徽章')}</summary><Progress plan={plan} lang={lang}/></details>}
       </>}
     </section>}
+  </>
+}
+
+const taskIcons = { exercise: Bike, measurement: HeartPulse, self_check: ClipboardList }
+
+// Phone layout: one button per task plus history and badges; only the chosen
+// section is shown below the buttons.
+function TaskTabs({ plan, lang, picked, pick, render, history }: {
+  plan: Plan; lang: Lang; picked: Task['kind'] | 'history' | null; pick: (kind: Task['kind'] | 'history') => void
+  render: (task: Task) => React.ReactNode; history: React.ReactNode
+}) {
+  const t: T = (en, zh) => tx(lang, en, zh)
+  const showHistory = picked === 'history' || !plan.items.length
+  const current = showHistory ? null : plan.items.find(task => task.kind === picked) ??
+    plan.items.find(task => task.status === 'pending' || task.status === 'in_progress') ?? plan.items[0]
+  return <>
+    <div className="task-tabs" role="tablist" aria-label={t('Your tasks', '你的任務')}>
+      {plan.items.map(task => {
+        const Icon = taskIcons[task.kind]
+        const selected = task.id === current?.id
+        return <button key={task.id} role="tab" aria-selected={selected} aria-controls="task-tab-panel"
+          className={'task-tab ' + task.status + (selected ? ' selected' : '')} onClick={() => pick(task.kind)}>
+          <Icon size={20} aria-hidden="true"/>
+          <span>{label(t, task.kind)}</span>
+          <small>{label(t, task.status)}</small>
+        </button>
+      })}
+      <button role="tab" aria-selected={showHistory} aria-controls="task-tab-panel"
+        className={'task-tab history' + (showHistory ? ' selected' : '')} onClick={() => pick('history')}>
+        <Award size={20} aria-hidden="true"/>
+        <span>{t('History', '歷史徽章')}</span>
+        <small>{t('7 days', '近 7 天')}</small>
+      </button>
+    </div>
+    <div id="task-tab-panel" role="tabpanel">{current ? render(current) : history}</div>
   </>
 }
 
@@ -281,7 +320,7 @@ function TaskCard({ task, lang, locked, run, goMeasure }: CardProps) {
   const [reason, setReason] = useState('')
   const open = task.status === 'pending' || task.status === 'in_progress'
   const started = task.status === 'in_progress'
-  const Icon = { exercise: Bike, measurement: HeartPulse, self_check: ClipboardList }[task.kind]
+  const Icon = taskIcons[task.kind]
   const evidence = task.evidence
   return <article className="panel training-task" data-testid={'task-' + task.kind}>
     <header><div className="training-symbol"><Icon size={19}/></div>

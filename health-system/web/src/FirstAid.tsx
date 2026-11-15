@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, HeartPulse, LifeBuoy } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, ExternalLink, HeartPulse, LifeBuoy } from 'lucide-react'
 import { api, restricted } from './api'
 import { tx, type Lang } from './domain'
 import './first-aid.css'
@@ -44,10 +44,13 @@ const delivery: Record<string, [string, string]> = {
   rejected: ['The station could not accept the request. Call a nearby crewmate.', '工作站未受理求助。請直接呼叫附近隊友。'],
 }
 
-export function FirstAid({ lang, initialId, onHelp, helpStatus = 'idle', onDenied }: {
-  lang: Lang; initialId?: string | null; onHelp: () => void; helpStatus?: string; onDenied: () => void
+export function FirstAid({ lang, initialId, onHelp, helpStatus = 'idle', onDenied, stepped = false }: {
+  lang: Lang; initialId?: string | null; onHelp: () => void; helpStatus?: string; onDenied: () => void; stepped?: boolean
 }) {
-  const [selection, setSelection] = useState(initialId && initialId !== 'first-aid' ? { id: initialId, version: 1 } : null)
+  const [selection, setSelectionState] = useState(initialId && initialId !== 'first-aid' ? { id: initialId, version: 1 } : null)
+  // Phone layout reads a card one step at a time so the screen never needs scrolling.
+  const [step, setStep] = useState(0)
+  const setSelection = (next: { id: string; version: number } | null) => { setSelectionState(next); setStep(0) }
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const index = useReading<CardList>(selection ? null : '/procedures', onDenied)
   const detail = useReading<Card>(selection
@@ -55,7 +58,8 @@ export function FirstAid({ lang, initialId, onHelp, helpStatus = 'idle', onDenie
   const active = selection ? detail : index
   const card = detail.result?.data
   const status = delivery[helpStatus]
-  return <section className="aid-page" aria-label={t('First aid', '急救')}>
+  const current = card ? Math.min(step, card.chunks.length - 1) : 0
+  return <section className={'aid-page' + (stepped && selection ? ' aid-reading' : '')} aria-label={t('First aid', '急救')}>
     <div className="aid-top">
       <div><h2>{t('First-aid cards', '急救流程卡')}</h2>
         <p>{t('These local training cards can be read without an internet connection.', '連上船內網路即可閱讀這些本機訓練卡。')}</p>
@@ -79,17 +83,34 @@ export function FirstAid({ lang, initialId, onHelp, helpStatus = 'idle', onDenie
       </button>)}</div>}
     {selection && card && <article className="aid-card" data-testid={'procedure-' + card.id}>
       <header><span className="aid-scope">{environment(card.environment, lang)} · v{card.version}</span>
-        <h3>{card.title[lang]}</h3><p>{card.purpose[lang]}</p>
+        <h3>{card.title[lang]}</h3>{!stepped && <><p>{card.purpose[lang]}</p>
         <p className="aid-review">{card.audience[lang]} · {t('Educational material. No mission medical approval.',
-          '教育用途。尚未取得任務醫療審核核准。')}</p>
+          '教育用途。尚未取得任務醫療審核核准。')}</p></>}
       </header>
-      <ol className="aid-steps">{card.chunks.map(c => <li key={c.id}>
+      {stepped && card.chunks.length > 0 ? <div className="aid-stepper">
+        <p className="aid-step-count" aria-live="polite">{t('Step', '步驟')} {current + 1} / {card.chunks.length}</p>
+        <ol className="aid-steps" start={current + 1}><li key={card.chunks[current].id}>
+          <h4>{card.chunks[current].section[lang]}</h4><p>{card.chunks[current].text[lang]}</p>
+        </li></ol>
+        <div className="aid-step-nav">
+          <button type="button" disabled={current === 0} onClick={() => setStep(current - 1)}>
+            <ChevronLeft size={20}/>{t('Previous', '上一步')}</button>
+          <button type="button" className="next" disabled={current === card.chunks.length - 1} onClick={() => setStep(current + 1)}>
+            {t('Next', '下一步')}<ChevronRight size={20}/></button>
+        </div>
+      </div> : <ol className="aid-steps">{card.chunks.map(c => <li key={c.id}>
         <h4>{c.section[lang]}</h4><p>{c.text[lang]}</p>
-      </li>)}</ol>
-      <footer><h4>{t('Sources', '資料來源')}</h4><ul>{card.sources.map(s => <li key={s.id}>
+      </li>)}</ol>}
+      {stepped ? <details className="aid-sources"><summary>{t('About this card and sources', '說明與資料來源')}</summary>
+        <p>{card.purpose[lang]}</p>
+        <p className="aid-review">{card.audience[lang]} · {t('Educational material. No mission medical approval.',
+          '教育用途。尚未取得任務醫療審核核准。')}</p><ul>{card.sources.map(s => <li key={s.id}>
         <a href={s.url} target="_blank" rel="noreferrer">{s.title} <ExternalLink size={13}/></a>
         <small>{s.version}</small>
-      </li>)}</ul></footer>
+      </li>)}</ul></details> : <footer><h4>{t('Sources', '資料來源')}</h4><ul>{card.sources.map(s => <li key={s.id}>
+        <a href={s.url} target="_blank" rel="noreferrer">{s.title} <ExternalLink size={13}/></a>
+        <small>{s.version}</small>
+      </li>)}</ul></footer>}
     </article>}
   </section>
 }

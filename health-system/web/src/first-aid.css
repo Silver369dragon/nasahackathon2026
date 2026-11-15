@@ -28,3 +28,29 @@
 .aid-card footer ul { list-style: none; padding: 0; margin: .55rem 0 0; }
 .aid-card footer li + li { margin-top: .45rem; }
 .aid-card footer a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; }
+
+/* Phone card screen: back link and help button share one row, the intro text is
+   dropped, and the card shows one step at a time. */
+.aid-page.aid-reading { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: .5rem; }
+.aid-page.aid-reading > * { grid-column: 1 / -1; }
+.aid-page.aid-reading > .aid-back { grid-column: 1; grid-row: 1; }
+.aid-page.aid-reading > .aid-top { grid-column: 2; grid-row: 1; justify-self: end; margin: 0; }
+.aid-page.aid-reading .aid-top > div:first-child, .aid-page.aid-reading .aid-contact small { display: none; }
+.aid-page.aid-reading .aid-help { min-height: 40px; padding: .4rem .7rem; font-size: .9rem; }
+.aid-page.aid-reading .aid-card { margin-top: .3rem; padding: .75rem; }
+.aid-page.aid-reading .aid-card h3 { font-size: 1.3rem; margin: .2rem 0; }
+.aid-page.aid-reading .aid-card header p { font-size: .9rem; line-height: 1.4; }
+.aid-step-count { color: var(--accent); font-weight: 700; font-size: .9rem; margin: .45rem 0 0 !important; }
+.aid-stepper .aid-steps { margin: .2rem 0 0; min-height: 9.5rem; }
+.aid-stepper .aid-steps li { padding: .3rem 0 .3rem .2rem; }
+.aid-stepper .aid-steps h4 { font-size: 1.1rem; }
+.aid-stepper .aid-steps p { font-size: 1rem; }
+.aid-step-nav { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+.aid-step-nav button { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; min-height: 52px; border-radius: .5rem;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-weight: 700; font-size: 1rem; }
+.aid-step-nav button.next { background: var(--dark); border-color: var(--dark); color: #fff; }
+.aid-step-nav button:disabled { opacity: .4; }
+.aid-sources { margin-top: .6rem; border-top: 1px solid var(--line); padding-top: .5rem; font-size: .9rem; }
+.aid-sources summary { color: var(--accent); cursor: pointer; }
+.aid-sources ul { list-style: none; padding: 0; margin: .4rem 0 0; }
+.aid-sources a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; }

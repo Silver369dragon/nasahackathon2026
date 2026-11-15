@@ -1,10 +1,31 @@
 import { test, expect, type Page } from '@playwright/test'
 
+// Finish intercepted requests before Playwright disposes the page/request context.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' })
+})
+
+// Other suites publish real emergencies to the shared disposable server.
+// Body tests exercise scan data and WebGL, so keep unrelated notifications out of their UI.
+test.beforeEach(async ({ page }) => {
+  await page.route('**/v1/snapshot?*', async route => {
+    const response = await route.fetch()
+    const body = await response.json()
+    body.data.emergencies = []
+    await route.fulfill({ response, json: body })
+  })
+})
+
 async function login(page: Page, username = 'mira') {
-  await page.addInitScript(() => localStorage.setItem('orbital.lang','zh-TW'))
+  await page.addInitScript(() => sessionStorage.setItem('orbital.lang','zh-TW'))
   const response = await page.request.post('/v1/auth/login', {data:{username,password:'body-e2e-only'}})
   expect(response.ok()).toBeTruthy()
   return (await response.json()).data.csrfToken as string
+}
+// Phones show body details behind two tabs; open one before using what is inside it.
+async function bodyTab(page: Page, id: 'region' | 'injury') {
+  const tab = page.getByTestId('body-tab-' + id)
+  if (await tab.isVisible() && await tab.getAttribute('aria-selected') !== 'true') await tab.click()
 }
 async function seed(page: Page, csrf: string, preset: string) {
   const response = await page.request.post('/v1/body-scans/demo',{data:{requestId:crypto.randomUUID(),preset},headers:{'X-CSRF-Token':csrf}})
@@ -35,6 +56,7 @@ test('mobile hologram selects real meshes, changes layers and compares saved sca
   await page.getByTestId('body-layer-fat').click()
   await expect(page.getByTestId('body-region-title')).toHaveText('左大腿')
   await expect(page.locator('.body-finding')).toContainText('肌肉拉傷')
+  await bodyTab(page,'region')
   await page.getByRole('button',{name:'比較與掃描細節',exact:true}).click()
   await expect(page.getByTestId('body-comparison')).toBeVisible()
   await page.screenshot({path:info.outputPath('body-mobile.png'),fullPage:true})
@@ -64,6 +86,7 @@ test('scan controls persist a recovery scan and history shows the matching injur
   await page.getByRole('button',{name:'回到最新',exact:true}).click()
   await expect(page.locator('.body-finding-tags').first()).toContainText('恢復中')
   expect((await (await page.request.get('/v1/body-scans/'+latest.id)).json()).data.scan.id).toBe(latest.id)
+  await bodyTab(page,'region')
   await page.getByRole('button',{name:'比較與掃描細節',exact:true}).click()
   await page.screenshot({path:info.outputPath('history-comparison.png'),fullPage:true})
 })
@@ -81,9 +104,15 @@ test('empty, partial and failed WebGL views retain accessible body information',
   await page.reload()
   const missing=page.getByRole('button',{name:'左前臂',exact:true})
   const available=page.getByRole('button',{name:'右前臂',exact:true})
-  expect(await missing.evaluate(element=>getComputedStyle(element).fill)).not.toBe(await available.evaluate(element=>getComputedStyle(element).fill))
+  // Fallback meshes mount before the scan request finishes; wait for the data-driven colors.
+  await expect.poll(async () =>
+    await missing.evaluate(element=>getComputedStyle(element).fill) !==
+    await available.evaluate(element=>getComputedStyle(element).fill)).toBe(true)
   await page.getByRole('button',{name:'背面',exact:true}).click()
-  expect(await page.getByRole('button',{name:'背部',exact:true}).evaluate(element=>getComputedStyle(element).fill)).not.toBe(await available.evaluate(element=>getComputedStyle(element).fill))
+  await expect.poll(async () =>
+    await page.getByRole('button',{name:'背部',exact:true}).evaluate(element=>getComputedStyle(element).fill) !==
+    await available.evaluate(element=>getComputedStyle(element).fill)).toBe(true)
+  await bodyTab(page,'region')
   await page.getByLabel('選擇身體部位',{exact:true}).selectOption('left_forearm')
   await expect(page.locator('.body-missing')).toContainText('尚無可用')
   await expect(page.getByTestId('body-composition')).toContainText('—')
@@ -220,6 +249,9 @@ test('offline refresh retains the scan and context loss falls back without losin
   await seed(page,token,'recovery')
   await page.goto('/app/body-map')
   await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
+  // refresh() also loads history before releasing its in-flight guard.
+  await page.getByRole('button',{name:'歷史比較',exact:true}).click()
+  await expect.poll(() => page.getByLabel('比較掃描',{exact:true}).locator('option').count()).toBeGreaterThan(1)
   await page.locator('.body-canvas canvas').evaluate((canvas:HTMLCanvasElement)=>{
     canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext()
   })
@@ -228,7 +260,6 @@ test('offline refresh retains the scan and context loss falls back without losin
   await page.evaluate(()=>window.dispatchEvent(new Event('online')))
   await expect(page.getByText('暫時無法連線，保留最後取得的掃描資料。')).toBeVisible()
   await expect(page.getByTestId('body-composition')).toContainText('32.7')
-  await page.getByRole('button',{name:'歷史比較',exact:true}).click()
   await expect(page.getByLabel('比較掃描',{exact:true})).toBeEnabled()
 })
 
@@ -238,10 +269,14 @@ test('home uses a static preview and leaving the body view releases WebGL', asyn
   const token=await login(page)
   await seed(page,token,'baseline')
   await page.goto('/app/overview')
-  const card=page.getByTestId('body-overview-card')
+  // Phones show a button home screen instead of the body preview card.
+  const phone=(page.viewportSize()?.width ?? 1000)<=650
+  const card=phone ? page.getByRole('button',{name:'身體全息圖',exact:true}) : page.getByTestId('body-overview-card')
   await expect(card).toBeVisible()
-  await expect(card).toContainText('32.4')
-  await expect.poll(()=>card.locator('img').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0)
+  if(!phone){
+    await expect(card).toContainText('32.4')
+    await expect.poll(()=>card.locator('img').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0)
+  }
   expect(requests.filter(url=>/BodyScene-|orbital-body\.glb/.test(url))).toEqual([])
   await card.screenshot({path:info.outputPath('home-body-card.png')})
   await card.click()
@@ -259,9 +294,13 @@ test('home uses a static preview and leaving the body view releases WebGL', asyn
 
 test('an older background response cannot replace a newly saved scan',async({page})=>{
   const token=await login(page)
+  await seed(page,token,'training_strain')
   await seed(page,token,'baseline')
   await page.goto('/app/body-map')
   await expect(page.getByTestId('body-scene')).toHaveAttribute('data-renderer','ready')
+  // The online refresh must start after initial history releases the in-flight guard.
+  await page.getByRole('button',{name:'歷史比較',exact:true}).click()
+  await expect.poll(() => page.getByLabel('比較掃描',{exact:true}).locator('option').count()).toBeGreaterThan(1)
   await expect(page.getByRole('button',{name:'模擬掃描',exact:true})).toBeEnabled()
   let release!:()=>void, captured!:()=>void
   const held=new Promise<void>(resolve=>{release=resolve})

@@ -34,7 +34,9 @@ function Finding({item,lang,onSelect}: {item: BodyFinding;lang:Lang;onSelect:(co
   </article>
 }
 
-export default function BodyMap({session,lang,deny,back}: {session:Session;lang:Lang;deny:()=>void;back:()=>void}) {
+type Panel = 'region'|'injury'
+
+export default function BodyMap({session,lang,deny,back,tabbed=false}: {session:Session;lang:Lang;deny:()=>void;back:()=>void;tabbed?:boolean}) {
   const data = useBodyScans(session,deny)
   const t = (en:string,zh:string) => tx(lang,en,zh)
   const regionKey = 'orbital-body-region:'+session.username
@@ -45,6 +47,8 @@ export default function BodyMap({session,lang,deny,back}: {session:Session;lang:
   const [historyOpen,setHistoryOpen] = useState(false)
   const [expanded,setExpanded] = useState(false)
   const [preset,setPreset] = useState<ScanPreset>('baseline')
+  // Phone layout opens on the body model and scan controls; a panel shows only after a tab or region is chosen.
+  const [panel,setPanel] = useState<Panel|null>(null)
   const gripStart = useRef<number|null>(null)
   const swiped = useRef(false)
   const details = useRef<HTMLElement>(null)
@@ -69,7 +73,57 @@ export default function BodyMap({session,lang,deny,back}: {session:Session;lang:
   const selectScan = (id:string) => {setScanId(id || null);setPreviousId(null)}
   const reveal = () => {setExpanded(v => !v)}
 
-  return <section className="body-console" data-testid="body-map">
+  const historyPanel = <section className="body-history-panel" id="body-history" aria-label={t('Scan comparison','掃描比較')}>
+      <div className="body-history-title"><span><History size={16}/>{t('Compare your scans','看見身體的變化')}</span><small>{data.items.length} {t('loaded','筆紀錄')}</small></div>
+      <div className="body-history-selects"><label>{t('Viewing','目前檢視')}<select aria-label={t('Viewing scan','目前掃描')} value={scanId ?? ''} onChange={e=>selectScan(e.target.value)}>
+        <option value="">{t('Latest scan','最新掃描')}</option>{data.items.filter(s=>s.id!==data.latest?.id).map((s,i)=><option key={s.id} value={s.id}>{t('Scan','掃描')} {data.items.length-i-1} · {stamp(s.observedAt,lang)}</option>)}</select></label>
+        <label>{t('Compare with','比較對象')}<select aria-label={t('Comparison scan','比較掃描')} value={previousId ?? ''} onChange={e=>setPreviousId(e.target.value||null)}>
+          <option value="">{t('Previous scan (automatic)','前一次掃描（自動）')}</option>{data.items.filter(s=>s.id!==scan?.id).map(s=><option key={s.id} value={s.id}>{stamp(s.observedAt,lang)} · {s.id.slice(0,4)}</option>)}</select></label></div>
+      {previous ? <p>{t('Difference from','差異比較基準：')}{stamp(previous.observedAt,lang)}</p> : <p>{t('Save a second scan to compare.','再保存一次掃描，就能比較前後變化。')}</p>}
+      {data.nextCursor && <button className="body-more" onClick={()=>void data.more()} disabled={data.loadingMore}>{t('Load older scans','載入更早紀錄')}<ChevronDown size={15}/></button>}
+    </section>
+  const scanPanel = <>
+        <div className="body-scan-controls">
+          <label><span>{t('Scan scenario','掃描情境')}</span><select aria-label={t('Scan scenario','掃描情境')} value={data.pending?.preset ?? preset} disabled={data.scanning||!!data.pending} onChange={e=>setPreset(e.target.value as ScanPreset)}>
+            {Object.entries(presetLabels).map(([id,pair])=><option key={id} value={id}>{t(pair[0],pair[1])}</option>)}</select></label>
+          <button className="body-scan-button" onClick={()=>void startScan()} disabled={!data.demoEnabled||data.scanning}>
+            <ScanLine size={19}/>{data.scanning?t('Scanning…','掃描中…'):data.pending?t('Retry scan','重試掃描'):t('Simulate scan','模擬掃描')}</button>
+        </div>
+        {data.error && <p className="body-notice" role="alert">{t('Scan delivery is unconfirmed. Retry the same request safely.','尚未確認掃描結果。重試會查核同一筆請求，不會重複保存。')}</p>}
+        {data.loaded&&!data.demoEnabled && <p className="body-scan-disabled">{t('Simulation is disabled on this server. Saved scans remain available.','此伺服器未開啟模擬掃描，仍可閱讀已保存的紀錄。')}</p>}
+  </>
+  const regionPart = <>
+        <div className="body-detail-title"><div><p className="body-eyebrow">{selectedRegion?t('REGION DETAIL','部位詳情'):t('YOUR BODY','全身狀態')}</p>
+          <h2 data-testid="body-region-title">{selectedRegion?regionLabel(selectedRegion,lang):t('Whole body','全身總覽')}</h2></div>
+          {selectedRegion?<button className="body-clear" onClick={()=>setSelectedRegion(null)}>{t('Whole body','回到全身')}</button>:<Shield size={24} strokeWidth={1.3}/>}</div>
+        {!scan && <p className="body-empty">{t('Your first scan starts here. Explore the body, then run a simulated scan.','從第一次掃描開始。你可以先探索人體，再進行模擬掃描。')}</p>}
+        <div className="body-composition" data-testid="body-composition">
+          <div><span>{t('Muscle mass','肌肉量')}</span><strong>{bodyNumber(comparison?.muscleMassKg.current)}<small>kg</small></strong>{comparison&&previous&&<Delta value={comparison.muscleMassKg} lang={lang}/>}</div>
+          <div><span>{t('Fat mass','脂肪量')}</span><strong>{bodyNumber(comparison?.fatMassKg.current)}<small>kg</small></strong>{comparison&&previous&&<Delta value={comparison.fatMassKg} lang={lang}/>}</div>
+        </div>
+        {!selectedRegion && <div className="body-total-strip"><span>{t('Body mass','身體質量')}<b>{bodyNumber(scan?.totals.bodyMassKg)} kg</b></span><span>{t('Body fat','體脂率')}<b>{bodyNumber(fatPercent(scan))}%</b></span></div>}
+        {selectedRegion&&scan&&(!selectedReading||selectedReading.quality!=='good')&&<p className="body-missing" role="status"><TriangleAlert size={15}/>{t('This region has no usable reading.','此部位尚無可用的量測資料。')}</p>}
+        <div className="body-region-picker"><label htmlFor="body-region">{t('Explore a region','選擇身體部位')}</label><select id="body-region" value={selectedRegion??''} onChange={e=>setSelectedRegion((e.target.value||null) as RegionCode|null)}>
+          <option value="">{t('Whole body','全身總覽')}</option>{regions.map(r=><option key={r.code} value={r.code}>{regionLabel(r.code,lang)}</option>)}</select></div>
+  </>
+  const injuryPart = <>
+        <div className="body-findings-header"><h3>{t('Injury observations','傷勢觀察')}</h3><span>{activeFindings(scan,selectedRegion).length}</span></div>
+        {findings.length?findings.map(item=><Finding key={item.id} item={item} lang={lang} onSelect={setSelectedRegion}/>):<div className="body-no-findings"><Shield size={20}/><p>{scan?t('No injuries recorded in this scan.','本次掃描未記錄傷勢。'):t('Awaiting scan observations','等待掃描結果')}</p></div>}
+        <div className="body-attention" hidden={!selectedRegion||attention.length===0}><button onClick={()=>setSelectedRegion(null)}>{t('View all observations','查看全身傷勢觀察')}<ArrowUpRight size={14}/></button></div>
+  </>
+  const extraPart = <>
+        <button className="body-detail-expand" aria-expanded={expanded} onClick={reveal}>{t('Comparison & scan details','比較與掃描細節')}{expanded?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button>
+        {expanded&&<div className="body-detail-extra">
+          {comparison&&<div className="body-comparison-table" data-testid="body-comparison"><div><span>{t('Measure','項目')}</span><span>{t('Current','目前')}</span><span>{t('Previous','前次')}</span><span>Δ kg</span></div>
+            {(['muscleMassKg','fatMassKg'] as const).map(key=><div key={key}><span>{key==='muscleMassKg'?t('Muscle','肌肉'):t('Fat','脂肪')}</span><b>{bodyNumber(comparison[key].current)}</b><span>{bodyNumber(comparison[key].previous)}</span><Delta value={comparison[key]} lang={lang}/></div>)}</div>}
+          {!previous&&<p>{t('A second scan is needed for comparison.','需要第二次掃描才能比較。')}</p>}
+          {previous&&<p>{t('Compared with ','比較對象：')}{stamp(previous.observedAt,lang)}</p>}
+          <dl><dt>{t('Source','資料來源')}</dt><dd>{t('Orbital scanner · simulated','船內掃描器・模擬資料')}</dd><dt>{t('Observed','掃描時間')}</dt><dd>{scan?stamp(scan.observedAt,lang):'—'}</dd><dt>{t('Quality','資料品質')}</dt><dd>{!scan?'—':selectedRegion?selectedReading?.quality==='good'?t('Available','可用'):t('Unavailable','未取得'):t('See each region','依部位顯示')}</dd></dl>
+        </div>}
+  </>
+  const tabs: [Panel,string,string,typeof Layers3][] = [['region','Body overview','全身總覽',Layers3],['injury','Injuries','傷勢觀察',TriangleAlert]]
+
+  return <section className={'body-console'+(tabbed?' tabbed'+(panel?' panel-open':''):'')} data-testid="body-map">
     <header className="body-heading">
       <div className="body-heading-title"><button className="body-back" onClick={back} aria-label={t('Back to overview','返回個人總覽')}><ArrowLeft size={19}/></button>
         <div><p className="body-eyebrow">PERSONAL BIOLOGY / 01</p><h1>{t('Body hologram','身體全息圖')}</h1></div></div>
@@ -80,15 +134,7 @@ export default function BodyMap({session,lang,deny,back}: {session:Session;lang:
     <div className="body-mobile-summary"><span>{t('Muscle','肌肉')}<b>{bodyNumber(scan?.totals.muscleMassKg)}<small>kg</small></b></span><span>{t('Fat','脂肪')}<b>{bodyNumber(scan?.totals.fatMassKg)}<small>kg</small></b></span><span>{t('Observations','傷勢觀察')}<b>{scan?attention.length:'—'}<small>{t('regions','處')}</small></b></span></div>
     {data.offline && <div className="body-notice" role="status">{t('Connection unavailable. Showing the last received scan.','暫時無法連線，保留最後取得的掃描資料。')}<button onClick={() => void data.refresh(true)}>{t('Reconnect','重新連線')}</button></div>}
     {historical && <div className="body-history-banner"><History size={15}/>{t('Historical scan','歷史掃描')}<button onClick={() => selectScan('')}>{t('Return to latest','回到最新')}</button></div>}
-    {historyOpen && <section className="body-history-panel" id="body-history" aria-label={t('Scan comparison','掃描比較')}>
-      <div className="body-history-title"><span><History size={16}/>{t('Compare your scans','看見身體的變化')}</span><small>{data.items.length} {t('loaded','筆紀錄')}</small></div>
-      <div className="body-history-selects"><label>{t('Viewing','目前檢視')}<select aria-label={t('Viewing scan','目前掃描')} value={scanId ?? ''} onChange={e=>selectScan(e.target.value)}>
-        <option value="">{t('Latest scan','最新掃描')}</option>{data.items.filter(s=>s.id!==data.latest?.id).map((s,i)=><option key={s.id} value={s.id}>{t('Scan','掃描')} {data.items.length-i-1} · {stamp(s.observedAt,lang)}</option>)}</select></label>
-        <label>{t('Compare with','比較對象')}<select aria-label={t('Comparison scan','比較掃描')} value={previousId ?? ''} onChange={e=>setPreviousId(e.target.value||null)}>
-          <option value="">{t('Previous scan (automatic)','前一次掃描（自動）')}</option>{data.items.filter(s=>s.id!==scan?.id).map(s=><option key={s.id} value={s.id}>{stamp(s.observedAt,lang)} · {s.id.slice(0,4)}</option>)}</select></label></div>
-      {previous ? <p>{t('Difference from','差異比較基準：')}{stamp(previous.observedAt,lang)}</p> : <p>{t('Save a second scan to compare.','再保存一次掃描，就能比較前後變化。')}</p>}
-      {data.nextCursor && <button className="body-more" onClick={()=>void data.more()} disabled={data.loadingMore}>{t('Load older scans','載入更早紀錄')}<ChevronDown size={15}/></button>}
-    </section>}
+    {historyOpen && historyPanel}
     <div className="body-workbench">
       <div className="body-visual-column">
         <div className="body-layer-tabs" role="group" aria-label={t('Body layers','身體圖層')}>
@@ -108,45 +154,27 @@ export default function BodyMap({session,lang,deny,back}: {session:Session;lang:
           </Suspense>
         </BodyLoadBoundary>
         <div className="body-legend"><span className={'body-gradient '+layer}/><span>{layer==='overview'?t('Body overview','身體總覽'):layer==='muscle'?t('Regional muscle mass · kg','分區肌肉量・kg'):t('Regional fat mass · kg','分區脂肪量・kg')}</span><span className="body-legend-missing"/>{t('Unavailable','未取得')}</div>
-        <div className="body-scan-controls">
-          <label><span>{t('Scan scenario','掃描情境')}</span><select aria-label={t('Scan scenario','掃描情境')} value={data.pending?.preset ?? preset} disabled={data.scanning||!!data.pending} onChange={e=>setPreset(e.target.value as ScanPreset)}>
-            {Object.entries(presetLabels).map(([id,pair])=><option key={id} value={id}>{t(pair[0],pair[1])}</option>)}</select></label>
-          <button className="body-scan-button" onClick={()=>void startScan()} disabled={!data.demoEnabled||data.scanning}>
-            <ScanLine size={19}/>{data.scanning?t('Scanning…','掃描中…'):data.pending?t('Retry scan','重試掃描'):t('Simulate scan','模擬掃描')}</button>
-        </div>
-        {data.error && <p className="body-notice" role="alert">{t('Scan delivery is unconfirmed. Retry the same request safely.','尚未確認掃描結果。重試會查核同一筆請求，不會重複保存。')}</p>}
-        {data.loaded&&!data.demoEnabled && <p className="body-scan-disabled">{t('Simulation is disabled on this server. Saved scans remain available.','此伺服器未開啟模擬掃描，仍可閱讀已保存的紀錄。')}</p>}
+        {scanPanel}
       </div>
-      <article className={'body-detail '+(expanded?'expanded':'')} ref={details}>
+      {!tabbed ? <article className={'body-detail '+(expanded?'expanded':'')} ref={details}>
         <button className="body-sheet-grip" aria-label={expanded?t('Collapse details','收合詳情'):t('Expand details','展開詳情')} aria-expanded={expanded}
           onClick={()=>{if(swiped.current){swiped.current=false;return}reveal()}} onPointerDown={e=>{gripStart.current=e.clientY;swiped.current=false;e.currentTarget.setPointerCapture(e.pointerId)}} onPointerUp={e=>{
             if(gripStart.current!==null&&Math.abs(e.clientY-gripStart.current)>20){setExpanded(e.clientY<gripStart.current);swiped.current=true}
             gripStart.current=null
           }}><span/>{expanded?<ChevronDown size={16}/>:<ChevronUp size={16}/>}</button>
-        <div className="body-detail-title"><div><p className="body-eyebrow">{selectedRegion?t('REGION DETAIL','部位詳情'):t('YOUR BODY','全身狀態')}</p>
-          <h2 data-testid="body-region-title">{selectedRegion?regionLabel(selectedRegion,lang):t('Whole body','全身總覽')}</h2></div>
-          {selectedRegion?<button className="body-clear" onClick={()=>setSelectedRegion(null)}>{t('Whole body','回到全身')}</button>:<Shield size={24} strokeWidth={1.3}/>}</div>
-        {!scan && <p className="body-empty">{t('Your first scan starts here. Explore the body, then run a simulated scan.','從第一次掃描開始。你可以先探索人體，再進行模擬掃描。')}</p>}
-        <div className="body-composition" data-testid="body-composition">
-          <div><span>{t('Muscle mass','肌肉量')}</span><strong>{bodyNumber(comparison?.muscleMassKg.current)}<small>kg</small></strong>{comparison&&previous&&<Delta value={comparison.muscleMassKg} lang={lang}/>}</div>
-          <div><span>{t('Fat mass','脂肪量')}</span><strong>{bodyNumber(comparison?.fatMassKg.current)}<small>kg</small></strong>{comparison&&previous&&<Delta value={comparison.fatMassKg} lang={lang}/>}</div>
+        {regionPart}
+        {injuryPart}
+        {extraPart}
+      </article> : <>
+        <div className="body-tabs" role="tablist" aria-label={t('Body details','身體資料')}>
+          {tabs.map(([id,en,zh,Icon])=><button key={id} role="tab" aria-selected={panel===id} aria-controls={'body-panel-'+id} data-testid={'body-tab-'+id}
+            className={panel===id?'selected':''} onClick={()=>setPanel(current=>current===id?null:id)}>
+            <Icon size={18} aria-hidden="true"/><span>{id==='region'&&selectedRegion?regionLabel(selectedRegion,lang):t(en,zh)}</span>
+            {id==='injury'&&<b>{scan?attention.length:'—'}</b>}</button>)}
         </div>
-        {!selectedRegion && <div className="body-total-strip"><span>{t('Body mass','身體質量')}<b>{bodyNumber(scan?.totals.bodyMassKg)} kg</b></span><span>{t('Body fat','體脂率')}<b>{bodyNumber(fatPercent(scan))}%</b></span></div>}
-        {selectedRegion&&scan&&(!selectedReading||selectedReading.quality!=='good')&&<p className="body-missing" role="status"><TriangleAlert size={15}/>{t('This region has no usable reading.','此部位尚無可用的量測資料。')}</p>}
-        <div className="body-region-picker"><label htmlFor="body-region">{t('Explore a region','選擇身體部位')}</label><select id="body-region" value={selectedRegion??''} onChange={e=>setSelectedRegion((e.target.value||null) as RegionCode|null)}>
-          <option value="">{t('Whole body','全身總覽')}</option>{regions.map(r=><option key={r.code} value={r.code}>{regionLabel(r.code,lang)}</option>)}</select></div>
-        <div className="body-findings-header"><h3>{t('Injury observations','傷勢觀察')}</h3><span>{activeFindings(scan,selectedRegion).length}</span></div>
-        {findings.length?findings.map(item=><Finding key={item.id} item={item} lang={lang} onSelect={setSelectedRegion}/>):<div className="body-no-findings"><Shield size={20}/><p>{scan?t('No injuries recorded in this scan.','本次掃描未記錄傷勢。'):t('Awaiting scan observations','等待掃描結果')}</p></div>}
-        <div className="body-attention" hidden={!selectedRegion||attention.length===0}><button onClick={()=>setSelectedRegion(null)}>{t('View all observations','查看全身傷勢觀察')}<ArrowUpRight size={14}/></button></div>
-        <button className="body-detail-expand" aria-expanded={expanded} onClick={reveal}>{t('Comparison & scan details','比較與掃描細節')}{expanded?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button>
-        {expanded&&<div className="body-detail-extra">
-          {comparison&&<div className="body-comparison-table" data-testid="body-comparison"><div><span>{t('Measure','項目')}</span><span>{t('Current','目前')}</span><span>{t('Previous','前次')}</span><span>Δ kg</span></div>
-            {(['muscleMassKg','fatMassKg'] as const).map(key=><div key={key}><span>{key==='muscleMassKg'?t('Muscle','肌肉'):t('Fat','脂肪')}</span><b>{bodyNumber(comparison[key].current)}</b><span>{bodyNumber(comparison[key].previous)}</span><Delta value={comparison[key]} lang={lang}/></div>)}</div>}
-          {!previous&&<p>{t('A second scan is needed for comparison.','需要第二次掃描才能比較。')}</p>}
-          {previous&&<p>{t('Compared with ','比較對象：')}{stamp(previous.observedAt,lang)}</p>}
-          <dl><dt>{t('Source','資料來源')}</dt><dd>{t('Orbital scanner · simulated','船內掃描器・模擬資料')}</dd><dt>{t('Observed','掃描時間')}</dt><dd>{scan?stamp(scan.observedAt,lang):'—'}</dd><dt>{t('Quality','資料品質')}</dt><dd>{!scan?'—':selectedRegion?selectedReading?.quality==='good'?t('Available','可用'):t('Unavailable','未取得'):t('See each region','依部位顯示')}</dd></dl>
-        </div>}
-      </article>
+        <div className="body-detail body-tab-panel" id="body-panel-region" role="tabpanel" hidden={panel!=='region'}>{regionPart}{extraPart}</div>
+        <div className="body-detail body-tab-panel" id="body-panel-injury" role="tabpanel" hidden={panel!=='injury'}>{injuryPart}</div>
+      </>}
     </div>
     <div className="body-footer"><span>ORBITAL · BODY SCAN</span><span>{t('Your body, over time.','看見身體，與它的變化。')}</span></div>
   </section>

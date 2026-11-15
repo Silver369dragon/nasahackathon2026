@@ -63,10 +63,12 @@ function Controls({data, session, lang, deny}: {data:RadiationSnapshot; session:
   </details>
 }
 
-export function Radiation({data, connected, session, lang, deny, crewId, board = false}: {
+export function Radiation({data, connected, session, lang, deny, crewId, board = false, phone = false}: {
   data:RadiationSnapshot | null; connected:boolean; session:Session; lang:Lang; deny:()=>void; crewId?:string | null; board?:boolean
+  phone?:boolean
 }) {
   const [now, setNow] = useState(Date.now)
+  const [tab, setTab] = useState<'environment' | 'mine'>('environment')
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [])
   const t = (en:string, zh:string) => tx(lang, en, zh)
   const fresh = radiationFresh(data, connected, now)
@@ -88,6 +90,35 @@ export function Radiation({data, connected, session, lang, deny, crewId, board =
     return [{id:String(i), observedAt:new Date(p.elapsedMs).toISOString(),value:p.rateUsvH,quality:'good',segment}]
   })
   const start = points[0]?.elapsedMs ?? 0, end = Math.max(start + 1, data?.elapsedMs ?? 1)
+  const chart = <TrendChart group={{points:plotPoints,unit:'μSv/h'}} start={new Date(start).toISOString()} end={new Date(end).toISOString()}
+      lang={lang} metricCode="radiation" floor={0} axisLabels={[(start/1000).toFixed(0)+' s',t('Monitoring time','監測時間'),(end/1000).toFixed(0)+' s']}/>
+  const about = <details><summary>{t('Estimate and source', '估計方法與來源')}</summary><p>{t('Fictional past missions plus one shared cabin exposure estimate. Not absorbed dose, organ-weighted effective dose or a health diagnosis.', '虛構歷史任務加上全艙共同暴露估計；不等同吸收劑量、器官加權有效劑量或健康診斷。')}</p>
+      <p>{t('75 μSv/h is a historical Mars-cruise demonstration reference, not a safety threshold.', '75 μSv/h 為火星航程歷史量級的展示參考，不是安全門檻。')} <a href="https://www.jpl.nasa.gov/news/data-from-nasa-rovers-voyage-to-mars-aids-planning/" target="_blank" rel="noreferrer">NASA/JPL</a></p></details>
+  // Phone layout: a colored status card, then one of two views (cabin environment or my total).
+  if (phone) {
+    const level = !fresh ? 'unknown' : data!.environment.radiationEvent
+    return <section className={'panel radiation-panel radiation-phone'} data-testid="radiation-panel">
+      <div className={'radiation-status-card ' + level}>
+        <div><span>{t('Cabin radiation now', '現在艙內輻射')}</span>
+          <strong className="radiation-value"><span data-testid="radiation-rate">{number(fresh ? data?.environment.rateUsvH : null, 1)}</span> <small>μSv/h</small></strong></div>
+        <b data-testid="radiation-status">{fresh ? labels[data!.environment.radiationEvent] : t('Data unavailable', '資料缺失或更新中')}</b>
+        <small>{t('Last saved', '最後保存')} {data ? stamp(data.checkpointAt, lang) : '—'} · Simulation</small>
+      </div>
+      <div className="radiation-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'environment'} className={tab === 'environment' ? 'selected' : ''} onClick={() => setTab('environment')}>{t('Cabin', '艙內環境')}</button>
+        <button role="tab" aria-selected={tab === 'mine'} className={tab === 'mine' ? 'selected' : ''} onClick={() => setTab('mine')}>{t('My total', '我的累積')}</button>
+      </div>
+      {tab === 'environment' ? <div className="radiation-tab-body">{chart}
+        <p>{t('Shared increment this mission', '本次任務全員共同新增')} <b>{number(fresh ? data?.sharedExposure.currentMsv : null, 4)} mSv</b></p>
+        <small>{t('Shared monitoring time', '共同監測時間')} {data ? (data.elapsedMs / 3600000).toFixed(2) : '—'} h</small>
+        {!fresh && data && <small>{t('Last valid increment', '最後有效新增量')}：{number(data.sharedExposure.lastValidCurrentMsv, 4)} mSv</small>}
+        {data?.sharedExposure.coverage !== 'complete' && <small>{t('Coverage incomplete; known subtotal only.', '資料涵蓋不完整，僅提供已知小計。')}</small>}
+      </div> : <div className="radiation-tab-body">{people.length ? people.map(person => <Person key={person.crewId} {...{person,fresh,lang,deny}}/>)
+        : <p>{t('No personal record.', '尚無個人紀錄。')}</p>}</div>}
+      {data && fresh && session.roles.includes('monitor') && data.sourceMode === 'simulation' && <Controls {...{data,session,lang,deny}}/>}
+      {about}
+    </section>
+  }
   return <section className={'panel radiation-panel' + (elevated ? ' radiation-event' : '')} data-testid="radiation-panel">
     <div className="radiation-heading"><h2>{t('Space Radiation Monitoring', '太空輻射監測')}</h2><span className="simulation-label">Simulation</span></div>
     <div className="radiation-environment"><div><p>{t('Current Radiation Dose Equivalent Rate', '當前環境輻射劑量當量率')}</p>
@@ -98,11 +129,9 @@ export function Radiation({data, connected, session, lang, deny, crewId, board =
       <p>{t('Shared increment', '全員共同新增')}：{number(fresh ? data?.sharedExposure.currentMsv : null, 4)} mSv</p>
       {!fresh && data && <small>{t('Last valid increment', '最後有效新增量')}：{number(data.sharedExposure.lastValidCurrentMsv, 4)} mSv</small>}
       {data?.sharedExposure.coverage !== 'complete' && <p>{t('Coverage incomplete; known subtotal only.', '資料涵蓋不完整，僅提供已知小計。')}</p>}
-    </div><div><small>μSv/h</small><TrendChart group={{points:plotPoints,unit:'μSv/h'}} start={new Date(start).toISOString()} end={new Date(end).toISOString()}
-      lang={lang} metricCode="radiation" floor={0} axisLabels={[(start/1000).toFixed(0)+' s',t('Monitoring time','監測時間'),(end/1000).toFixed(0)+' s']}/></div></div>
+    </div><div><small>μSv/h</small>{chart}</div></div>
     {!!people.length && <div className="radiation-crew" data-testid="radiation-crew">{people.map(person => <Person key={person.crewId} {...{person,fresh,lang,deny}}/>)}</div>}
     {data && fresh && session.roles.includes('monitor') && !board && data.sourceMode === 'simulation' && <Controls {...{data,session,lang,deny}}/>}
-    <details><summary>{t('Estimate and source', '估計方法與來源')}</summary><p>{t('Fictional past missions plus one shared cabin exposure estimate. Not absorbed dose, organ-weighted effective dose or a health diagnosis.', '虛構歷史任務加上全艙共同暴露估計；不等同吸收劑量、器官加權有效劑量或健康診斷。')}</p>
-      <p>{t('75 μSv/h is a historical Mars-cruise demonstration reference, not a safety threshold.', '75 μSv/h 為火星航程歷史量級的展示參考，不是安全門檻。')} <a href="https://www.jpl.nasa.gov/news/data-from-nasa-rovers-voyage-to-mars-aids-planning/" target="_blank" rel="noreferrer">NASA/JPL</a></p></details>
+    {about}
   </section>
 }

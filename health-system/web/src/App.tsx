@@ -37,7 +37,7 @@ import { Catalog, CrewBoard, History, Reading } from './Readings'
 import { Measure } from './Measure'
 import { label } from './labels'
 import { useFeed } from './useFeed'
-import { DesktopNoticeOptIn, desktopNotice, EmergencyNotices } from './EmergencyNotices'
+import { DesktopNoticeOptIn, desktopNotice, EmergencyAlert, EmergencyNotices } from './EmergencyNotices'
 import { clearSavedHelp, useHelp } from './useHelp'
 import { PersonalTraining, TeamTraining } from './Training'
 import { FirstAid } from './FirstAid'
@@ -48,6 +48,11 @@ import { AssessmentStatus, News2 } from './AssessmentForm'
 import { BodyOverview } from './BodyOverview'
 import { BodyLoadBoundary } from './BodyLoadBoundary'
 import { DatasetImport } from './DatasetImport'
+import { HistoryTimeline } from './HistoryTimeline'
+import { MobileVitals } from './MobileVitals'
+import { CrewStatusBoard } from './CrewStatusBoard'
+import { ThemeButton, useCrewTheme } from './Theme'
+import { MobileBack, MobileHome, MobileMore, useMobile } from './MobileHome'
 import './style.css'
 
 const BodyMap = lazy(() => import('./BodyMap'))
@@ -226,6 +231,8 @@ const paths = {
   tasks: '/app/tasks',
   chat: '/app/assistant',
   aid: '/app/first-aid',
+  radiation: '/app/radiation',
+  more: '/app/more',
   system: '/system/overview',
   systemCatalog: '/system/catalog',
   board: '/board',
@@ -287,6 +294,13 @@ function Console({
   const crew = feed.rows.find((row) => row.crewId === reference)
   const detail = path.startsWith('/system/crew/')
   const aidPage = path === paths.aid || path.startsWith(paths.aid + '/')
+  const mobile = useMobile()
+  const simple = mobile && personal
+  const mobileHome = simple && path === paths.personal
+  // Crew view on any screen size uses the visual components (tiles, colored statuses, pop-up);
+  // the tap-to-open screen flow above stays phone-only.
+  const visual = personal
+  const crewTheme = useCrewTheme(personal)
   const nav = [
     ...(session.roles.includes('crew') && session.crewId
       ? [
@@ -319,7 +333,9 @@ function Console({
   ]
   const where =
     nav.find((n) => n.path === (aidPage ? paths.aid : path))?.text ??
-    (detail ? t('Crew detail', '船員詳情') : t('Display board', '大螢幕'))
+    (path === paths.radiation ? t('Radiation', '輻射監測')
+      : path === paths.more ? t('More', '更多')
+        : detail ? t('Crew detail', '船員詳情') : t('Display board', '大螢幕'))
   const title =
     path === paths.personal
       ? t('Health overview', '健康總覽')
@@ -346,7 +362,8 @@ function Console({
       session={session} lang={lang} deny={deny} crewId={session.crewId}/></main>
   }
   return (
-    <div className={'workspace' + (isBoard ? ' board' : '')}>
+    <div className={'workspace' + (isBoard ? ' board' : '') + (simple ? ' mobile-simple' : '') +
+      (simple && path === paths.body ? ' mobile-body' : '') + (mobileHome ? ' mobile-home-page' : '')}>
       {!isBoard && (
         <aside className="rail">
           <Brand />
@@ -404,7 +421,10 @@ function Console({
             </div>
           )}
           <div className="top-actions">
+            {visual && <EmergencyAlert crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username}
+              crewId={session.crewId} openAid={() => go(paths.aid)}/>}
             <Clock />
+            {personal && <ThemeButton lang={lang} {...crewTheme} />}
             <Language lang={lang} change={toggleLang} />
             {isBoard && (
               <>
@@ -460,15 +480,16 @@ function Console({
                 ' ' + t('Last sync', '最後同步') + ' ' + new Date(feed.syncedAt).toLocaleTimeString(lang)}
             </p>
           )}
-          <EmergencyNotices crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>
+          {!visual && <EmergencyNotices crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>}
           {detail && (
             <button className="back" onClick={() => go(paths.system)}>
               <ArrowLeft size={14} />
               {t('Crew overview', '全員總覽')}
             </button>
           )}
-          {path !== paths.body && <div className={'page-title' + (overview && !isBoard ? ' page-hero' : '')}>
+          {path !== paths.body && !mobileHome && <div className={'page-title' + (overview && !isBoard ? ' page-hero' : '')}>
             {overview && !isBoard && <OrbitArt />}
+            {simple && <MobileBack lang={lang} onClick={() => go(paths.personal)} />}
             <div>
               <div className="kicker">
                 <span />
@@ -499,9 +520,13 @@ function Console({
             )}
             {isBoard && <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny} board/>}
           </div>}
-          {path === paths.personal && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
+          {visual && path === paths.personal && !mobileHome && crew && <>
+            <SectionTitle text={t('Vital signs', '生命徵象')} />
+            <MobileVitals crew={crew} lang={lang} revision={feed.historyRevision[crew.crewId]} deny={deny} openTraining={() => go(paths.tasks)} />
+          </>}
+          {path === paths.personal && !mobileHome && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
           {path === paths.system && session.roles.includes('monitor') && <DatasetImport session={session} lang={lang} deny={deny} />}
-          {(path === paths.personal || path === paths.system || detail) && <Radiation
+          {((path === paths.personal && !mobileHome) || path === paths.system || detail) && <Radiation
             data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny}
             crewId={personal || detail ? reference : null} board={isBoard}/>}
           {path === paths.personal && help.status === 'sent' && <p className="help-sent" data-testid="help-sent" role="status">
@@ -521,25 +546,30 @@ function Console({
               </div>
             }>
             <Suspense fallback={<div className="panel empty-state">{t('Loading body view…', '正在載入人體檢視…')}</div>}>
-              <BodyMap key={session.username + session.csrfToken} session={session} lang={lang} deny={deny} back={() => go(paths.personal)} />
+              <BodyMap key={session.username + session.csrfToken} session={session} lang={lang} deny={deny} back={() => go(paths.personal)} tabbed={simple} />
             </Suspense>
             </BodyLoadBoundary>
           ) : path === paths.assessment ? (
             <News2 session={session} lang={lang} deny={deny} assessmentRevision={feed.assessmentRevision}
               revision={feed.historyRevision[session.username]} measure={() => go(paths.measure)}
-              ask={id => { setChatAssessment(id); go(paths.chat) }}/>
+              ask={id => { setChatAssessment(id); go(paths.chat) }} stepped={simple}/>
           ) : path === paths.trends ? (
-            <Trends lang={lang} deny={deny} revision={feed.historyRevision[session.username]}/>
+            <Trends lang={lang} deny={deny} revision={feed.historyRevision[session.username]} simple={visual}/>
           ) : path === paths.tasks ? null : path === paths.chat ? (
             <Chat session={session} lang={lang} deny={deny} assessmentId={chatAssessment} clearAssessment={() => setChatAssessment(undefined)}
               openAid={id => go(id === 'first-aid' ? paths.aid : paths.aid + '/' + id)} />
           ) : aidPage ? (
             <FirstAid key={path} lang={lang} initialId={path.split('/')[3]} onDenied={deny}
-              onHelp={help.request} helpStatus={help.status} />
+              onHelp={help.request} helpStatus={help.status} stepped={simple} />
           ) : path === paths.measure ? (
-            <Measure session={session} lang={lang} deny={deny} overview={() => go(paths.personal)} />
+            <Measure session={session} lang={lang} deny={deny} overview={() => go(paths.personal)} slider={simple} />
+          ) : path === paths.radiation ? (
+            <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny}
+              crewId={session.crewId} phone={visual}/>
+          ) : path === paths.more ? (
+            <MobileMore lang={lang} go={go} paths={paths} signOut={stationBase ? undefined : signOut} />
           ) : path.endsWith('/catalog') ? (
-            <Catalog lang={lang} deny={deny} />
+            <Catalog lang={lang} deny={deny} phone={visual} />
           ) : !feed.loaded ? (
             <div className="panel empty-state">
               <Radio size={22} />
@@ -564,8 +594,9 @@ function Console({
                   <b>{feed.rows.length - withData}</b>
                 </div>
               </div>
-              <SectionTitle text={t('Crew measurements', '船員量測')} />
-              <CrewBoard board={isBoard} rows={feed.rows} lang={lang} navigate={go} />
+              {!isBoard && <SectionTitle text={t('Crew measurements', '船員量測')} />}
+              {isBoard ? <CrewStatusBoard rows={feed.rows} lang={lang} />
+                : <CrewBoard board={false} rows={feed.rows} lang={lang} navigate={go} />}
               {!isBoard && <section className="panel news-monitor"><h2>{t('Latest NEWS2 assessments','最新 NEWS2 健康評估')}</h2>
                 {feed.assessments.length ? feed.assessments.map(a => <article key={a.crewId}>
                   <strong>{feed.rows.find(r => r.crewId === a.crewId)?.name ?? a.crewId}</strong>
@@ -577,25 +608,28 @@ function Console({
             <div className="panel empty-state">{t('Data unavailable', '無可用資料')}</div>
           ) : (
             <div data-testid={'crew-' + crew.crewId}>
-              {path !== paths.history && (
+              {path !== paths.history && !(visual && path === paths.personal && !mobileHome) && (
                 <>
                   <SectionTitle text={t('Vital signs', '生命徵象')} />
-                  <div className="metric-grid">
+                  {mobileHome ? <MobileVitals crew={crew} lang={lang} revision={feed.historyRevision[crew.crewId]} deny={deny} openTraining={() => go(paths.tasks)} /> : <div className="metric-grid">
                     {metrics.map((m) => (
                       <Reading key={m.code} crew={crew} metric={m} lang={lang} />
                     ))}
-                  </div>
+                  </div>}
                 </>
               )}
-              {path === paths.history ?
-                <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} /> :
+              {mobileHome ? null : path === paths.history ?
+                visual ? <HistoryTimeline key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
+                : <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} /> :
                 <details className="disclosure panel"><summary><HistoryIcon size={17}/>{t('Measurement history', '量測歷史')}</summary>
                   <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
                 </details>}
             </div>
           )}
+          {mobileHome && <MobileHome lang={lang} go={go} paths={paths} help={{
+            request: help.request, pending: help.pending, disabled: help.sending || (help.pending && !connected) }} />}
           {personal && <PersonalTraining session={session} lang={lang} deny={deny} refreshToken={feed.trainingRevision}
-            showTasks={path === paths.personal || path === paths.tasks} compact={path === paths.personal} goMeasure={() => go(paths.measure)} />}
+            showTasks={(path === paths.personal && !mobileHome) || path === paths.tasks} compact={path === paths.personal} tabbed={simple} goMeasure={() => go(paths.measure)} />}
           <footer>
             <span>
               <Earth size={13} />
@@ -624,9 +658,10 @@ function normalize(path: string, s: Session) {
   return path.replace(/\/$/, '')
 }
 export default function App() {
-  const [lang, setLang] = useState<Lang>(() =>
-    localStorage.getItem('orbital.lang') === 'zh-TW' ? 'zh-TW' : 'en',
-  )
+  // Every new visit opens in English; a language switch is kept only for this tab (reloads included).
+  const [lang, setLang] = useState<Lang>(() => {
+    try { return sessionStorage.getItem('orbital.lang') === 'zh-TW' ? 'zh-TW' : 'en' } catch { return 'en' }
+  })
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [expired, setExpired] = useState(false)
@@ -646,7 +681,7 @@ export default function App() {
   }, [])
   useEffect(() => {
     document.documentElement.lang = lang
-    localStorage.setItem('orbital.lang', lang)
+    try { sessionStorage.setItem('orbital.lang', lang) } catch { /* The switch still applies to this page. */ }
   }, [lang])
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname.slice(stationBase.length))

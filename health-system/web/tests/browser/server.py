@@ -16,4 +16,4 @@ import uvicorn  # noqa: E402
 from backend.main import create_app  # noqa: E402
 
 with tempfile.TemporaryDirectory(prefix='orbital-body-e2e-') as temporary:
-    uvicorn.run(create_app(Path(temporary) / 'training.db'), host='127.0.0.1', port=8018, log_level='warning')
+    uvicorn.run(create_app(Path(temporary) / 'training.db'), host='127.0.0.1', port=int(os.environ.get('HEALTH_TEST_PORT', '8018')), log_level='warning')

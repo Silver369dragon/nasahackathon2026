@@ -1,0 +1,54 @@
+.history-timeline { padding: 10px 12px; }
+.history-timeline ol { list-style: none; margin: 0; padding: 0; }
+.history-legend { display: inline-flex; gap: 4px; margin-left: auto; }
+.history-legend .history-chip { display: inline-block; font: 600 10px var(--font, inherit); padding: 1px 6px; }
+.history-day { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; font: 600 12px var(--mono); color: var(--muted); }
+.history-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) 14px; align-items: start; gap: 8px; width: 100%;
+  padding: 6px 2px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; color: var(--ink); }
+.history-row time { font: 600 11px var(--mono); padding-top: 6px; }
+.history-row > svg { color: var(--muted); }
+.history-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+.history-chip { display: grid; min-width: 0; padding: 2px 5px; border-radius: 6px; font-size: 10px; font-weight: 600; line-height: 1.25; }
+.history-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-chip b { font-size: 13px; white-space: nowrap; }
+.history-chip small { font: 9px var(--mono); }
+.history-chip.inside { background: #dfeed6; color: #215c39; }
+.history-chip.outside { background: #f8eac7; color: #774e18; outline: 1px solid #ed9942; }
+.history-chip.unusable { background: #e7ebe8; color: #51676b; }
+.history-pager { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-top: 8px; }
+.history-pager { grid-template-columns: auto 1fr auto; }
+.history-pager span { text-align: center; }
+.history-pager button { gap: 2px; min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); font-size: 13px; font-weight: 600; }
+.history-pager button:disabled { opacity: .4; }
+.history-pager span { font: 11px var(--mono); color: var(--muted); }
+.history-detail { padding: 12px; }
+.history-detail h2 { margin: 6px 0; font-size: 18px; }
+.history-detail ul { list-style: none; margin: 0; padding: 0; }
+.history-detail li { padding: 8px 0; border-top: 1px solid var(--line); display: grid; gap: 3px; }
+.history-detail li div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.history-detail small { color: var(--muted); font-size: 12px; }
+.history-detail-back { gap: 4px; background: transparent; color: var(--accent); font-weight: 600; padding: 4px 0; }
+
+/* Dot matrix */
+.history-matrix table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.history-matrix th, .history-matrix td { padding: 0; text-align: center; }
+.history-matrix thead th { padding: 4px 0; font-size: 12px; font-weight: 700; }
+.history-matrix thead th:first-child, .history-matrix tbody th { width: 76px; text-align: left; }
+.history-matrix thead th:first-child { font: 10px var(--mono); color: var(--muted); }
+.history-matrix tbody tr { border-top: 1px solid var(--line); }
+.history-matrix table button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%;
+  min-height: 50px; padding: 2px 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink); }
+.history-matrix tbody th button { align-items: flex-start; font: 600 11px var(--mono); color: var(--accent); }
+.history-matrix tbody th button small { font-size: 9px; color: var(--muted); }
+.history-matrix td small { font: 600 10px var(--mono); color: var(--muted); white-space: nowrap; }
+.history-matrix .dot, .history-legend .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; }
+.history-legend .dot { width: 10px; height: 10px; margin-left: 4px; }
+.dot.inside { background: #4f9a63; }
+.dot.outside { background: #ed9942; box-shadow: 0 0 0 2px #f8eac7; }
+.dot.unusable { background: #a6b3b0; }
+.dot.none { background: transparent; border: 2px solid #cdd8d4; }
+.history-matrix .history-legend { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; font: 10px var(--mono); color: var(--muted); }
+.history-matrix .history-day { flex-wrap: wrap; }
+.history-matrix .history-pager span { font-size: 11px; }
+
+.history-matrix tbody th time { display: grid; gap: 3px; font-size: 10px; white-space: nowrap; }
