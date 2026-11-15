@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BellRing, ChevronDown, ChevronUp } from 'lucide-react'
+import { BellRing, BookHeart, Check, ChevronDown, ChevronUp, Siren } from 'lucide-react'
 import { shouldNotifyDesktop, stamp, tx, type CrewSummary, type Emergency, type Lang, type Session } from './domain'
 import { api } from './api'
 
@@ -103,4 +103,51 @@ export function EmergencyNotices({ items, lang, username, crewId, crew }: {
         {all ? t('Show latest only', '僅顯示最新通知') : t('Show earlier notifications', '查看較早通知')}</button>}
     </>}
   </section>
+}
+
+// Phone layout: a new emergency from someone else opens a red pop-up over the current screen.
+// Notices not yet acknowledged (for example older than the pop-up window) show as a bell in the
+// top bar; "Got it" acknowledges everything up to the newest notice and removes the bell.
+const POPUP_WINDOW_MS = 30 * 60 * 1000
+
+export function EmergencyAlert({ items, lang, username, crewId, crew, openAid }: {
+  items: Emergency[]; lang: Lang; username: string; crewId: string | null; crew: CrewSummary[]; openAid: () => void
+}) {
+  const seenKey = 'orbital.emergency.seenAt.' + username
+  const [seenAt, setSeenAt] = useState(() => Date.parse(sessionStorage.getItem(seenKey) ?? '') || 0)
+  const [reopened, setReopened] = useState(false)
+  const isMine = (item: Emergency) => item.source === 'manual' && item.crewId === crewId
+  const unseen = items.filter(item => !isMine(item) && Date.parse(item.createdAt) > seenAt)
+  if (!unseen.length) return null
+  const newest = unseen[0]
+  const recent = Date.now() - Date.parse(newest.createdAt) < POPUP_WINDOW_MS
+  const open = reopened || recent
+  const t = (en: string, zh: string) => tx(lang, en, zh)
+  const name = crew.find(row => row.crewId === newest.crewId)?.name ?? nameOf(newest)
+  function acknowledge() {
+    sessionStorage.setItem(seenKey, items[0].createdAt)
+    setSeenAt(Date.parse(items[0].createdAt))
+    setReopened(false)
+  }
+  return <>
+    <button type="button" className="emergency-bell" onClick={() => setReopened(true)}
+      aria-label={t('Emergency notifications', '緊急通知') + ' ' + unseen.length}>
+      <BellRing size={17} aria-hidden="true"/><span>{unseen.length}</span>
+    </button>
+    {open && <div className="emergency-overlay">
+      <section className="emergency-popup" role="alertdialog" aria-modal="true"
+        aria-labelledby="emergency-popup-title" aria-describedby="emergency-popup-detail" data-testid="emergency-popup">
+        <header><Siren size={30} aria-hidden="true"/><h2 id="emergency-popup-title">{t('Emergency', '緊急通知')}</h2></header>
+        <div id="emergency-popup-detail" className="emergency-popup-body">
+          <strong>{name}</strong>
+          <span>{sourceLabel(newest, lang)}</span>
+          <time dateTime={newest.createdAt}>{stamp(newest.createdAt, lang)}</time>
+        </div>
+        <button type="button" className="emergency-popup-aid" onClick={() => { acknowledge(); openAid() }}>
+          <BookHeart size={20} aria-hidden="true"/>{t('Open first aid', '開啟急救指引')}</button>
+        <button type="button" className="emergency-popup-ok" autoFocus onClick={acknowledge}>
+          <Check size={20} aria-hidden="true"/>{t('Got it', '我知道了')}</button>
+      </section>
+    </div>}
+  </>
 }

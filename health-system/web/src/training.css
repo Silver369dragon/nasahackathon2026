@@ -77,6 +77,18 @@
   .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
 }
 @media(max-width: 650px) {
+  .task-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 10px; }
+  .task-tab-panel .training-progress, #task-tab-panel .training-progress { margin-top: 0; }
+  .task-tab {
+    flex-direction: column; gap: 2px; min-height: 64px; padding: 6px 2px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 600;
+  }
+  .task-tab svg { color: var(--accent); }
+  .task-tab small { font-size: 10px; font-weight: 500; color: var(--muted); }
+  .task-tab.completed small { color: #275236; }
+  .task-tab.selected { background: var(--dark); border-color: var(--dark); color: #fff; }
+  .task-tab.selected svg { color: var(--lime); }
+  .task-tab.selected small { color: #c5d0ca; }
   .task-progress-ring { width: 60px; height: 60px; flex: 0 0 60px; }
   .task-progress-ring strong { font-size: 28px; }
   .task-progress-overview { padding: 11px 13px; margin: 10px 0; }

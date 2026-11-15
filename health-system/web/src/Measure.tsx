@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, Check, CircleCheck, ClipboardCheck, ScanLine } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CircleCheck, ClipboardCheck, Minus, Plus, ScanLine } from 'lucide-react'
 import { api, newId, restricted } from './api'
 import {
   localDateTime,
@@ -15,9 +15,19 @@ import { contexts, makeCommand, type Draft } from './manual'
 import { label } from './labels'
 import { metricIcons } from './Readings'
 
-function newDraft(metric: Metric): Draft {
+// Phone sliders: [min, max, step, starting value] for each field.
+const sliderRange: Record<string, [number, number, number, number]> = {
+  heart_rate: [30, 200, 1, 72],
+  spo2: [70, 100, 1, 98],
+  blood_pressure_systolic: [70, 200, 1, 120],
+  blood_pressure_diastolic: [40, 130, 1, 80],
+  temperature: [34, 41, 0.1, 36.6],
+}
+const sliderText = (code: string, value: number) => value.toFixed(sliderRange[code][2] < 1 ? 1 : 0)
+
+function newDraft(metric: Metric, slider = false): Draft {
   return {
-    values: metric.fields.map(() => ''),
+    values: metric.fields.map((code) => (slider ? sliderText(code, sliderRange[code][3]) : '')),
     time: localDateTime(),
     method: 'manual_training_entry',
     context: Object.fromEntries(Object.entries(contexts[metric.code]).map(([key, opts]) => [key, opts[0]])),
@@ -31,14 +41,16 @@ export function Measure({
   lang,
   deny,
   overview,
+  slider = false,
 }: {
   session: Session
   lang: Lang
   deny: () => void
   overview: () => void
+  slider?: boolean
 }) {
   const [metric, setMetric] = useState<Metric>(metrics[0])
-  const [draft, setDraft] = useState<Draft>(() => newDraft(metrics[0]))
+  const [draft, setDraft] = useState<Draft>(() => newDraft(metrics[0], slider))
   const [command, setCommand] = useState<ReturnType<typeof makeCommand> | null>(null)
   const [ids, setIds] = useState<string[] | null>(null)
   const [sending, setSending] = useState(false)
@@ -59,7 +71,7 @@ export function Measure({
   }
   const change = (next: Metric) => {
     setMetric(next)
-    setDraft(newDraft(next))
+    setDraft(newDraft(next, slider))
     setCommand(null)
     setIds(null)
     setError('')
@@ -113,6 +125,33 @@ export function Measure({
   const needReason =
     draft.quality !== 'good' ||
     (metric.code === 'blood_pressure' && draft.values.some(Boolean) && draft.values.some((v) => !v))
+  const setValue = (i: number, value: string) =>
+    setDraft({ ...draft, values: draft.values.map((v, n) => (n === i ? value : v)) })
+  const sliders = metric.fields.map((code, i) => {
+    const [min, max, step, start] = sliderRange[code]
+    const raw = Number(draft.values[i])
+    const value = draft.values[i] && Number.isFinite(raw) ? raw : start
+    const missing = draft.quality === 'missing'
+    const nudge = (delta: number) =>
+      setValue(i, sliderText(code, Math.min(max, Math.max(min, Math.round((value + delta) / step) * step))))
+    return (
+      <div className="slider-field" key={code}>
+        <div className="slider-head">
+          <span>{fieldName(i)}</span>
+          <output>{missing ? '—' : sliderText(code, value)}<small>{metric.unit}</small></output>
+        </div>
+        <div className="slider-row">
+          <button type="button" disabled={missing} onClick={() => nudge(-step)}
+            aria-label={t('Decrease', '減少') + ' ' + fieldName(i)}><Minus size={22} /></button>
+          <input type="range" min={min} max={max} step={step} value={value} disabled={missing}
+            aria-label={fieldName(i)} onChange={(e) => setValue(i, sliderText(code, Number(e.target.value)))} />
+          <button type="button" disabled={missing} onClick={() => nudge(step)}
+            aria-label={t('Increase', '增加') + ' ' + fieldName(i)}><Plus size={22} /></button>
+        </div>
+        <div className="slider-scale"><span>{min}</span><span>{max}</span></div>
+      </div>
+    )
+  })
   if (ids)
     return (
       <section className="panel saved-panel" role="status">
@@ -216,7 +255,7 @@ export function Measure({
       </section>
     )
   return (
-    <div className="measure-layout">
+    <div className={'measure-layout' + (slider ? ' measure-slider' : '')}>
       <section className="panel">
         <div className="panel-head">
           <h2>
@@ -256,8 +295,9 @@ export function Measure({
               '保存前請確認儀器讀值與量測時間。',
             )}
           </p>
+          {slider && <div className="slider-fields">{sliders}</div>}
           <div className="fields">
-            {metric.fields.map((code, i) => (
+            {!slider && metric.fields.map((code, i) => (
               <label key={code}>
                 {fieldName(i)}
                 <div className="unit-input">
@@ -367,3 +407,4 @@ export function Measure({
     </div>
   )
 }
+

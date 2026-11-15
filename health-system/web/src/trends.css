@@ -44,3 +44,23 @@
   .trend-stats strong { font-size: 20px; }
   .trend-series .trend-plot svg { max-height: none; }
 }
+
+/* Reference range band (phone layout) and second line for diastolic pressure. */
+.trend-plot .trend-band { fill: #dfeed6; }
+.trend-plot circle.second { fill: #77543b; }
+.phone-trends { gap: 8px; }
+.phone-trend-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.phone-trend-metrics button { min-height: 44px; padding: 4px 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); font-size: 13px; font-weight: 600; }
+.phone-trend-metrics button.selected { background: var(--dark); border-color: var(--dark); color: #fff; }
+.phone-trend-sources { display: flex; gap: 4px; overflow-x: auto; }
+.phone-trend-sources button { flex: 0 0 auto; padding: 6px 10px; border-radius: 6px; background: #edf2ed; font-size: 12px; }
+.phone-trend-sources button[aria-pressed=true] { background: var(--accent); color: #fff; }
+.phone-trends .trend-series { padding: 10px 12px; }
+.phone-trends .trend-headline { margin-bottom: 4px; }
+.phone-trends .trend-headline strong { font-size: 44px; }
+.phone-trend-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin: 4px 0 0; font-size: 11px; color: var(--muted); }
+.phone-trend-legend .swatch { width: 14px; height: 10px; border-radius: 2px; background: #dfeed6; }
+.phone-trend-legend .swatch.dashed { background: none; border-top: 2px dashed #77543b; height: 0; margin-left: 8px; }
+.phone-trend-compare { margin: 6px 0 0; font-size: 15px !important; font-weight: 600; color: var(--ink) !important; }
+.phone-trends .trend-evidence { margin-top: 6px; }
+.phone-trends .trend-stats { margin-top: 8px; }

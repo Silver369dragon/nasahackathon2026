@@ -6,6 +6,11 @@ async function login(page: Page, username = 'mira') {
   expect(response.ok()).toBeTruthy()
   return (await response.json()).data.csrfToken as string
 }
+// Phones show body details behind two tabs; open one before using what is inside it.
+async function bodyTab(page: Page, id: 'region' | 'injury') {
+  const tab = page.getByTestId('body-tab-' + id)
+  if (await tab.isVisible() && await tab.getAttribute('aria-selected') !== 'true') await tab.click()
+}
 async function seed(page: Page, csrf: string, preset: string) {
   const response = await page.request.post('/v1/body-scans/demo',{data:{requestId:crypto.randomUUID(),preset},headers:{'X-CSRF-Token':csrf}})
   expect(response.status()).toBe(201)
@@ -35,6 +40,7 @@ test('mobile hologram selects real meshes, changes layers and compares saved sca
   await page.getByTestId('body-layer-fat').click()
   await expect(page.getByTestId('body-region-title')).toHaveText('左大腿')
   await expect(page.locator('.body-finding')).toContainText('肌肉拉傷')
+  await bodyTab(page,'region')
   await page.getByRole('button',{name:'比較與掃描細節',exact:true}).click()
   await expect(page.getByTestId('body-comparison')).toBeVisible()
   await page.screenshot({path:info.outputPath('body-mobile.png'),fullPage:true})
@@ -64,6 +70,7 @@ test('scan controls persist a recovery scan and history shows the matching injur
   await page.getByRole('button',{name:'回到最新',exact:true}).click()
   await expect(page.locator('.body-finding-tags').first()).toContainText('恢復中')
   expect((await (await page.request.get('/v1/body-scans/'+latest.id)).json()).data.scan.id).toBe(latest.id)
+  await bodyTab(page,'region')
   await page.getByRole('button',{name:'比較與掃描細節',exact:true}).click()
   await page.screenshot({path:info.outputPath('history-comparison.png'),fullPage:true})
 })
@@ -84,6 +91,7 @@ test('empty, partial and failed WebGL views retain accessible body information',
   expect(await missing.evaluate(element=>getComputedStyle(element).fill)).not.toBe(await available.evaluate(element=>getComputedStyle(element).fill))
   await page.getByRole('button',{name:'背面',exact:true}).click()
   expect(await page.getByRole('button',{name:'背部',exact:true}).evaluate(element=>getComputedStyle(element).fill)).not.toBe(await available.evaluate(element=>getComputedStyle(element).fill))
+  await bodyTab(page,'region')
   await page.getByLabel('選擇身體部位',{exact:true}).selectOption('left_forearm')
   await expect(page.locator('.body-missing')).toContainText('尚無可用')
   await expect(page.getByTestId('body-composition')).toContainText('—')
@@ -238,10 +246,14 @@ test('home uses a static preview and leaving the body view releases WebGL', asyn
   const token=await login(page)
   await seed(page,token,'baseline')
   await page.goto('/app/overview')
-  const card=page.getByTestId('body-overview-card')
+  // Phones show a button home screen instead of the body preview card.
+  const phone=(page.viewportSize()?.width ?? 1000)<=650
+  const card=phone ? page.getByRole('button',{name:'身體全息圖',exact:true}) : page.getByTestId('body-overview-card')
   await expect(card).toBeVisible()
-  await expect(card).toContainText('32.4')
-  await expect.poll(()=>card.locator('img').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0)
+  if(!phone){
+    await expect(card).toContainText('32.4')
+    await expect.poll(()=>card.locator('img').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0)
+  }
   expect(requests.filter(url=>/BodyScene-|orbital-body\.glb/.test(url))).toEqual([])
   await card.screenshot({path:info.outputPath('home-body-card.png')})
   await card.click()

@@ -165,3 +165,42 @@ p.body-model-status{position:absolute;inset:0 0 70px}
 @media(max-height:500px) and (orientation:landscape){.body-workbench{grid-template-columns:1fr 1fr}.body-viewport{height:340px}.body-detail{border-radius:0;border-left:1px solid #29414f}.body-sheet-grip{display:none}.body-detail-title{margin-top:22px}}
 @keyframes body-details-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.body-console *{animation:none!important;transition:none!important}.body-scan-plane{top:42%}}
+/* Phone layout (tabbed): body model first, four tabs below; one panel at a time. */
+.body-tabs{display:none}
+.body-console.tabbed .body-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 14px 12px}
+.body-tabs button{position:relative;min-height:52px;padding:6px 2px;flex-direction:row;gap:8px;font-size:14px;border-radius:9px;border:1px solid #29414f;background:#11232f;color:#c9dbe0;font-size:12px;font-weight:600}
+.body-tabs button svg{color:#7fc7d9}
+.body-console.tabbed .body-tabs button.selected,.body-console.tabbed .body-tabs button.selected:hover{background:#d0ef8a;border-color:#d0ef8a;color:#102b30}
+.body-console.tabbed .body-tabs button.selected svg{color:#102b30}
+.body-tabs b{min-width:18px;padding:0 4px;border-radius:9px;background:#ed9942;color:#2b1a05;font:700 11px/18px var(--mono)}
+.body-console.tabbed .body-tab-panel{border:0;border-top:1px solid #29414f;border-radius:0;margin:0;padding:12px 14px 10px}
+.body-console.tabbed .body-tab-panel[hidden]{display:none}
+.body-console.tabbed .body-tab-panel .body-detail-expand{margin-top:10px}
+.body-console.tabbed .body-detail-title{margin-top:0}
+
+.body-console.tabbed .body-composition{margin-top:6px}
+.body-console.tabbed .body-composition strong{font-size:28px}
+.body-console.tabbed .body-detail-title h2{font-size:20px}
+.body-console.tabbed .body-total-strip{margin-top:8px}
+.body-console.tabbed .body-scan-meta{padding-bottom:8px}
+.body-console.tabbed .body-mobile-summary{margin-top:6px;padding-bottom:10px}
+.body-console.tabbed .body-visual-column{padding-bottom:10px}
+/* Fill what is left of the screen: 278px on an 812px-tall phone, taller on taller phones. */
+.body-console.tabbed .body-viewport{height:clamp(240px,calc(100dvh - 534px),440px);margin-top:8px}
+.body-console.tabbed .body-eyebrow{display:none}
+.body-console.tabbed .body-heading{padding-top:10px;padding-bottom:8px}
+.body-console.tabbed .body-scan-controls{padding-top:8px}
+.body-console.tabbed.panel-open .body-viewport{height:198px}
+/* Layer buttons belong to the first screen; the detail tabs hide them. */
+.body-console.tabbed.panel-open .body-layer-tabs{display:none}
+.body-console.tabbed.panel-open .body-mobile-summary,.body-console.tabbed.panel-open .body-scan-meta{display:none}
+/* While a detail tab is open, the scan row steps aside; closing the tab brings it back. */
+.body-console.tabbed.panel-open .body-scan-controls{display:none}
+.body-console.tabbed .body-legend{display:none}
+.body-console.tabbed .body-mobile-summary b{font-size:21px}
+.body-console.tabbed .body-legend{padding:6px 0 0}
+.body-console.tabbed .body-footer{display:none}
+.body-console.tabbed .body-region-picker{margin-top:8px;padding-top:8px;padding-bottom:0}
+.body-console.tabbed .body-region-picker select{min-height:40px}
+.body-console.tabbed .body-tab-panel .body-detail-expand{margin-top:8px;padding-top:6px}
+.body-console.tabbed .body-total-strip{padding-top:0;padding-bottom:0}

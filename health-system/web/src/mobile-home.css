@@ -1,0 +1,206 @@
+/* Phone-only home screen and section navigation. Desktop layouts are unchanged. */
+.mobile-home, .mobile-more, .mobile-back { display: none; }
+
+@media (max-width: 650px) {
+  /* Text about 1.2x larger on phone screens. The 3D body page is left at
+     normal scale so pointer picking on its canvas stays accurate. */
+  .mobile-simple:not(.mobile-body) .content { zoom: 1.2; }
+  .mobile-simple .mobile-navigation { display: none; }
+  .mobile-simple footer { display: none; }
+  /* Home keeps only the four latest values; details stay on the history page. */
+  .mobile-home-page .section-title,
+  .mobile-home-page .reading-details { display: none; }
+  .mobile-home-page .scope-line { margin-bottom: 8px; }
+  .mobile-home-page .metric-grid { margin-bottom: 10px; }
+
+  .mobile-home { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 0; }
+  .mobile-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mobile-main-btn {
+    flex-direction: column; gap: 4px; min-height: 64px; padding: 6px 4px;
+    border-radius: 10px; background: var(--lime); color: var(--dark);
+    font-size: 14px; font-weight: 700; box-shadow: 0 2px 6px #001c2219;
+  }
+  .mobile-main-btn:nth-child(2) { background: var(--accent); color: #fff; }
+  .mobile-main-btn:nth-child(3) { background: var(--dark); color: #fff; }
+  .mobile-main-btn svg { width: 24px; height: 24px; }
+  .mobile-minor { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .mobile-minor-btn {
+    flex-direction: column; gap: 2px; min-height: 50px; padding: 5px 2px;
+    border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    font-size: 12px; font-weight: 600;
+  }
+  .mobile-minor-btn svg { width: 18px; height: 18px; color: var(--accent); }
+  .mobile-help {
+    gap: 10px; min-height: 48px; border-radius: 10px;
+    background: #b33521; color: #fff; font-size: 16px; font-weight: 700;
+  }
+  .mobile-help svg { width: 20px; height: 20px; }
+  .mobile-help:disabled { opacity: .65; }
+
+  .mobile-more { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .mobile-more-btn {
+    justify-content: flex-start; gap: 12px; min-height: 60px; padding: 0 14px;
+    border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    font-size: 16px; font-weight: 600; text-align: left;
+  }
+  .mobile-more-btn span { flex: 1; }
+  .mobile-more-btn svg { width: 22px; height: 22px; color: var(--accent); }
+  .mobile-more-btn.sign-out { margin-top: 8px; color: #8a2f20; }
+  .mobile-more-btn.sign-out svg { color: inherit; }
+
+  .mobile-back {
+    display: inline-flex; gap: 4px; min-height: 38px; padding: 0 12px 0 8px; margin-bottom: 8px;
+    border-radius: 8px; background: var(--dark); color: #fff; font-size: 14px; font-weight: 700;
+  }
+  .mobile-back svg { width: 18px; height: 18px; }
+  /* The body page is not zoomed, so give its back button the same visual size. */
+  .mobile-body .mobile-back { min-height: 46px; font-size: 17px; }
+
+  /* Sub-pages: back button on the left, section title on the right, one row. */
+  .mobile-simple .page-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .mobile-simple .page-title .mobile-back { margin-bottom: 0; flex: 0 0 auto; }
+  .mobile-simple .page-title > div { min-width: 0; text-align: right; }
+  .mobile-simple .page-title .kicker { justify-content: flex-end; }
+  /* Long section names (e.g. NEWS2) stay on one line next to the back button. */
+  .mobile-simple .page-title h1 { font-size: 24px; }
+  /* Daily training: the page title already names the section. */
+  .mobile-simple .training-plan .section-title { display: none; }
+  /* Daily progress as one slim bar; badges live in the History tab. */
+  .mobile-simple .task-progress-overview { flex-wrap: nowrap; gap: 12px; margin: 4px 0 10px; padding: 8px 12px; border-radius: 8px; }
+  .mobile-simple .task-progress-ring { width: 44px; height: 44px; flex: 0 0 44px; }
+  .mobile-simple .task-progress-ring::before { inset: 5px; }
+  .mobile-simple .task-progress-ring strong { font-size: 19px; }
+  .mobile-simple .task-progress-ring small { font-size: 11px; }
+  .mobile-simple .task-progress-overview h3 { font-size: 17px; }
+  .mobile-simple .task-progress-overview p { font-size: 11px; margin-top: 1px; }
+  .mobile-simple .task-badge-summary { display: none; }
+  .mobile-simple #task-tab-panel .training-progress { gap: 8px; }
+  .mobile-simple #task-tab-panel .training-caption { display: none; }
+  .mobile-simple #task-tab-panel .training-history ol { margin: 8px 0 6px; }
+}
+
+/* Emergency pop-up (phones only; rendered only in the phone layout). */
+.emergency-bell {
+  gap: 3px; min-height: 30px; padding: 3px 8px; border-radius: 6px;
+  background: #b33521; color: #fff; font: 700 12px var(--mono);
+}
+.emergency-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px;
+  background: rgba(16, 43, 48, 0.72);
+}
+.emergency-popup {
+  width: min(100%, 420px); display: flex; flex-direction: column; gap: 12px; padding: 18px;
+  background: #fff3ed; color: #5e2417; border: 6px solid #b33521; border-radius: 14px;
+  box-shadow: 0 0 0 4px #ffdbbb, 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: emergency-pulse 1.2s ease-in-out 3;
+}
+.emergency-popup header { display: flex; align-items: center; gap: 10px; color: #b33521; }
+.emergency-popup h2 { font-size: 30px; font-weight: 800; }
+.emergency-popup-body { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 2px solid #e8b9a6; border-bottom: 2px solid #e8b9a6; }
+.emergency-popup-body strong { font-size: 30px; color: #3d140b; }
+.emergency-popup-body span { font-size: 19px; font-weight: 700; }
+.emergency-popup-body time { font-size: 15px; }
+.emergency-popup-aid, .emergency-popup-ok { gap: 8px; min-height: 56px; border-radius: 10px; font-size: 18px; font-weight: 700; }
+.emergency-popup-aid { background: #b33521; color: #fff; }
+.emergency-popup-ok { background: #fff; color: #5e2417; border: 2px solid #b33521; }
+@keyframes emergency-pulse {
+  50% { box-shadow: 0 0 0 10px #f2b29b, 0 12px 32px rgba(0, 0, 0, 0.35); }
+}
+@media (prefers-reduced-motion: reduce) { .emergency-popup { animation: none; } }
+
+/* Record measurement on phones: one vital per screen, values set with sliders. */
+@media (max-width: 650px) {
+  .measure-slider { display: block; }
+  .measure-slider > .panel:first-child { border: 0; background: transparent; }
+  .measure-slider > .panel:first-child .panel-head,
+  .measure-slider .form-panel .panel-head,
+  .measure-slider .form-intro,
+  .measure-slider .check-line { display: none; }
+  .measure-slider .metric-choices { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0 0 8px; gap: 5px; }
+  .measure-slider .metric-choices button {
+    flex-direction: column; justify-content: center; gap: 2px; min-height: 50px; padding: 4px 2px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 12px; font-weight: 600;
+  }
+  .measure-slider .metric-choices button > svg:last-child:not(:first-child) { display: none; }
+  .measure-slider .metric-choices .selected,
+  .measure-slider .metric-choices .selected:hover { background: var(--dark); border-color: var(--dark); color: #fff; }
+  .measure-slider .form-body { padding: 10px 12px; }
+  .slider-fields { display: grid; gap: 8px; }
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; font-weight: 700; font-size: 15px; }
+  .slider-head output { font-family: Barlow, sans-serif; font-size: 40px; font-weight: 800; line-height: 1; color: var(--dark); }
+  .slider-head output small { font: 12px var(--mono); color: var(--muted); margin-left: 4px; }
+  .slider-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; margin-top: 2px; }
+  .slider-row button { min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--accent); }
+  /* Large thumb and track so the slider can be dragged with gloves. */
+  .slider-row input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; border: 0; padding: 0; box-shadow: none; }
+  .slider-row input[type=range]::-webkit-slider-runnable-track { height: 10px; border-radius: 5px; background: #cdd8d4; }
+  .slider-row input[type=range]::-moz-range-track { height: 10px; border-radius: 5px; background: #cdd8d4; }
+  .slider-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 34px; height: 34px; margin-top: -12px;
+    border-radius: 50%; background: var(--accent); border: 4px solid #fff; box-shadow: 0 1px 4px #001c2240; }
+  .slider-row input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; }
+  .slider-row input[type=range]:disabled { opacity: .4; }
+  .slider-head output { font-size: 40px !important; }
+  .slider-scale { display: none !important; }
+  .slider-scale { display: flex; justify-content: space-between; padding: 0 52px; font: 10px var(--mono); color: var(--muted); }
+  /* Time, method, context and quality stay visible in a tight two-column grid. */
+  .measure-slider .fields { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); gap: 8px 10px; }
+  .measure-slider .fields label { font-size: 12px; gap: 3px; }
+  .measure-slider .fields input, .measure-slider .fields select { height: 38px; padding: 4px 8px; font-size: 13px; }
+  .measure-slider .actions { margin-top: 10px; }
+  /* Blood pressure has two sliders: keep each one a little shorter. */
+  .slider-fields:has(> .slider-field + .slider-field) .slider-head output { font-size: 32px !important; }
+  .slider-fields:has(> .slider-field + .slider-field) .slider-row input[type=range] { height: 38px; }
+  .slider-fields:has(> .slider-field + .slider-field) .slider-row button { min-height: 40px; }
+  /* The reason field (only when quality is not good) takes one grid cell, not a whole row. */
+  .measure-slider .fields .wide { grid-column: auto; }
+  .measure-slider .actions .primary { width: 100%; min-height: 48px; font-size: 16px; }
+}
+
+/* Radiation (phone): colored status card and two views. */
+.radiation-phone { margin: 0; padding: 10px 12px; display: grid; gap: 8px; }
+.radiation-status-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; padding: 12px; border-radius: 10px; border: 2px solid; }
+.radiation-status-card > div > span { font-size: 13px; font-weight: 600; }
+.radiation-status-card .radiation-value { display: block; font-size: 40px; line-height: 1.1; }
+.radiation-status-card .radiation-value small { font-size: 14px; }
+.radiation-status-card b { padding: 4px 10px; border-radius: 999px; font-size: 13px; color: #fff; }
+.radiation-status-card small { grid-column: 1 / -1; font-size: 11px; opacity: .85; }
+.radiation-status-card.background { background: #eff6ec; border-color: #4f9a63; color: #215c39; }
+.radiation-status-card.background b { background: #2f7a47; }
+.radiation-status-card.elevated_exposure { background: #f8eac7; border-color: #ed9942; color: #774e18; }
+.radiation-status-card.elevated_exposure b { background: #a55f12; }
+.radiation-status-card.radiation_event { background: #fff3ed; border-color: #b33521; color: #5e2417; }
+.radiation-status-card.radiation_event b { background: #b33521; }
+.radiation-status-card.unknown { background: #eef1ef; border-color: #a6b3b0; color: #51676b; }
+.radiation-status-card.unknown b { background: #6d7f7c; }
+.radiation-tabs, .catalog-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; }
+.radiation-tabs button, .catalog-tabs button { gap: 4px; min-height: 42px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); font-size: 14px; font-weight: 600; }
+.radiation-tabs button.selected, .catalog-tabs button.selected { background: var(--dark); border-color: var(--dark); color: #fff; }
+.radiation-tab-body { display: grid; gap: 4px; }
+.radiation-tab-body p { margin: 0; font-size: 14px; }
+.radiation-tab-body small { color: var(--muted); font-size: 11px; }
+.radiation-phone .radiation-person { padding: 10px; }
+.radiation-phone .radiation-person h3 { margin-bottom: 4px; font-size: 13px; }
+.radiation-phone .radiation-person .radiation-value { font-size: 34px; }
+.radiation-phone .radiation-breakdown { margin-top: 4px; }
+.radiation-phone .radiation-person p { margin: 4px 0 0; font-size: 12px; }
+.radiation-phone summary { padding: 4px 0; font-size: 13px; color: var(--accent); }
+
+/* Metric catalog (phone): category tabs, two-column names with status dots. */
+.catalog-phone { padding: 10px 12px; }
+.catalog-tabs small { font: 10px var(--mono); opacity: .8; }
+.catalog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 10px 0 6px; padding: 0; list-style: none; }
+.catalog-grid button { justify-content: flex-start; gap: 6px; width: 100%; min-height: 42px; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 13px; font-weight: 600; text-align: left; }
+.catalog-dot { display: inline-block; flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; }
+.catalog-dot.enabled { background: #4f9a63; }
+.catalog-dot.form { background: #33657c; }
+.catalog-dot.planned { background: transparent; border: 2px solid #a6b3b0; }
+.catalog-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; font-size: 11px; color: var(--muted); }
+.catalog-legend .catalog-dot { margin-left: 6px; }
+.catalog-legend b { margin-left: auto; color: var(--accent); }
+.catalog-detail h2 { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 20px; }
+.catalog-detail dl { margin: 0; }
+.catalog-detail dl div { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.catalog-detail dt { color: var(--muted); }
+.catalog-detail dd { margin: 0; }
+.catalog-back { gap: 4px; background: transparent; color: var(--accent); font-weight: 600; padding: 4px 0; }

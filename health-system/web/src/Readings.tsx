@@ -346,8 +346,10 @@ type CatalogItem = {
   assessmentForm?: string
   sourceOptions: string[]
 }
-export function Catalog({ lang, deny }: { lang: Lang; deny: () => void }) {
+export function Catalog({ lang, deny, phone = false }: { lang: Lang; deny: () => void; phone?: boolean }) {
   const [items, setItems] = useState<CatalogItem[] | null>(null)
+  const [category, setCategory] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [retry, setRetry] = useState(0)
   const [search, setSearch] = useState('')
@@ -373,6 +375,41 @@ export function Catalog({ lang, deny }: { lang: Lang; deny: () => void }) {
   const filtered = items?.filter((i) =>
     [i.id, i.code, i.label, i.labelEn, i.category].join(' ').toLowerCase().includes(search.toLowerCase()),
   )
+  const availability = (i: CatalogItem) =>
+    i.enabled ? t('Enabled', '已開放') : i.assessmentForm === 'news2' ? t('NEWS2 assessment', 'NEWS2 評估表單') : t('Planned', '規劃中')
+  // Phone layout: one category at a time, names with a status dot; tap a name for its details.
+  if (phone) {
+    if (error) return <p className="panel empty-state" role="alert">{t('Catalog unavailable.', '無法讀取目錄。')}
+      <button className="text-btn" onClick={() => setRetry(retry + 1)}>{t('Retry', '重試')}</button></p>
+    if (!items) return <p className="panel empty-state">{t('Loading catalog…', '載入目錄中…')}</p>
+    const categories = [...new Set(items.map(i => i.category))]
+    const current = category || categories[0]
+    const open = items.find(i => i.id === openId)
+    const dot = (i: CatalogItem) => i.enabled ? 'enabled' : i.assessmentForm ? 'form' : 'planned'
+    if (open) return <section className="panel catalog-phone catalog-detail">
+      <button className="catalog-back" onClick={() => setOpenId(null)}><ChevronDown size={16} style={{ transform: 'rotate(90deg)' }}/>{t('Back to list', '返回列表')}</button>
+      <h2><span className={'catalog-dot ' + dot(open)}/>{t(open.labelEn, open.label)}</h2>
+      <dl>
+        <div><dt>ID</dt><dd>{open.id}</dd></div>
+        <div><dt>{t('Category', '分類')}</dt><dd>{label(open.category, lang)}</dd></div>
+        <div><dt>{t('Availability', '開放狀態')}</dt><dd>{availability(open)}</dd></div>
+        <div><dt>{t('Unit', '單位')}</dt><dd>{open.unit ? displayUnit(open.unit, open.code) : '—'}</dd></div>
+        <div><dt>{t('Data type', '型態')}</dt><dd>{open.dataType}</dd></div>
+        <div><dt>{t('Sources', '輸入來源')}</dt><dd>{open.sourceOptions.map(s => label(s, lang)).join(' · ')}</dd></div>
+      </dl>
+    </section>
+    return <section className="panel catalog-phone">
+      <div className="catalog-tabs" role="tablist">{categories.map(c => <button key={c} role="tab" aria-selected={c === current}
+        className={c === current ? 'selected' : ''} onClick={() => setCategory(c)}>
+        {({ emergency: t('Urgent', '緊急'), daily: t('Daily', '每日'), long_term: t('Long-term', '長期') } as Record<string, string>)[c] ?? label(c, lang)}
+        <small>{items.filter(i => i.category === c).length}</small></button>)}</div>
+      <ul className="catalog-grid">{items.filter(i => i.category === current).map(i => <li key={i.id}>
+        <button onClick={() => setOpenId(i.id)}><span className={'catalog-dot ' + dot(i)}/>{t(i.labelEn, i.label)}</button></li>)}</ul>
+      <p className="catalog-legend"><span className="catalog-dot enabled"/>{t('Enabled', '已開放')}
+        <span className="catalog-dot form"/>{t('Assessment form', '評估表單')}<span className="catalog-dot planned"/>{t('Planned', '規劃中')}
+        <b>{t('Enabled', '已開放')} {items.filter(i => i.enabled).length} / {items.length}</b></p>
+    </section>
+  }
   return (
     <section className="panel">
       <div className="panel-head">
@@ -426,7 +463,7 @@ export function Catalog({ lang, deny }: { lang: Lang; deny: () => void }) {
                   <td>{i.dataType}</td>
                   <td>{i.unit ? displayUnit(i.unit, i.code) : '—'}</td>
                   <td>{i.sourceOptions.map((s) => label(s, lang)).join(' · ')}</td>
-                  <td>{i.enabled ? t('Enabled', '已開放') : i.assessmentForm === 'news2' ? t('NEWS2 assessment', 'NEWS2 評估表單') : t('Planned', '規劃中')}</td>
+                  <td>{availability(i)}</td>
                 </tr>
               ))}
             </tbody>

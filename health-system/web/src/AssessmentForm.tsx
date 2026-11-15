@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Check, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 import { api, ApiError, newId, restricted } from './api'
 import { prettyValue, stamp, tx, type Lang, type Measurement, type Session } from './domain'
 import { label } from './labels'
@@ -28,9 +29,23 @@ export function AssessmentStatus({ item, lang }: { item: AssessmentSummary; lang
   </div>
 }
 
-export function News2({ lang, session, assessmentRevision, revision, deny, ask, measure }: {
+// Phone layout: one NEWS2 item per screen. Sliders use [min, max, step, starting value].
+type Item = { key: Field; en: string; zh: string }
+const items: Item[] = [
+  { key: 'spo2', en: 'SpO₂', zh: '血氧' }, { key: 'blood_pressure_systolic', en: 'BP', zh: '血壓' },
+  { key: 'heart_rate', en: 'Pulse', zh: '心率' }, { key: 'temperature', en: 'Temp', zh: '體溫' },
+  { key: 'respiratory_rate', en: 'Breathing', zh: '呼吸' }, { key: 'neurological_assessment', en: 'ACVPU', zh: '意識' },
+  { key: 'supplemental_oxygen', en: 'Oxygen', zh: '給氧' }, { key: 'spo2_scale', en: 'Scale', zh: '血氧尺度' },
+]
+const ranges: Partial<Record<Field, [number, number, number, number]>> = {
+  spo2: [70, 100, 1, 98], blood_pressure_systolic: [70, 220, 1, 120], heart_rate: [30, 200, 1, 72],
+  temperature: [34, 41, 0.1, 36.6], respiratory_rate: [4, 40, 1, 16],
+}
+const fixed = (k: Field, v: number) => v.toFixed((ranges[k]?.[2] ?? 1) < 1 ? 1 : 0)
+
+export function News2({ lang, session, assessmentRevision, revision, deny, ask, measure, stepped = false }: {
   lang: Lang; session: Session; assessmentRevision: number; revision?: string; deny: () => void
-  ask: (id: string) => void; measure: () => void
+  ask: (id: string) => void; measure: () => void; stepped?: boolean
 }) {
   const t = (en: string, zh: string) => tx(lang,en,zh)
   const [draft, setDraft] = useState<Draft>(blank)
@@ -45,6 +60,7 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
   const [ready, setReady] = useState(false)
   const [candidates, setCandidates] = useState<Partial<Record<Vital,Measurement[]>>>({})
   const [candidateError, setCandidateError] = useState(false)
+  const [step, setStep] = useState(0)
   const command = useRef(newId())
   const flight = useRef(false)
   useEffect(() => {
@@ -153,6 +169,111 @@ export function News2({ lang, session, assessmentRevision, revision, deny, ask, 
       {quality(k)}
     </div>
   }
+  const filled = (k: Field) => !!draft.links[k as Vital] || (draft.fields[k] ?? '') !== ''
+  function slider(k: Field) {
+    const [min, max, stepSize, start] = ranges[k]!
+    const raw = Number(draft.fields[k])
+    const value = draft.fields[k] && Number.isFinite(raw) ? raw : start
+    const nudge = (delta: number) => field(k, fixed(k, Math.min(max, Math.max(min, Math.round((value + delta) / stepSize) * stepSize))))
+    return <div className="slider-field">
+      <div className="slider-head"><span>{nameOf(k, lang)}</span><output>{fixed(k, value)}<small>{units[k]}</small></output></div>
+      <div className="slider-row">
+        <button type="button" onClick={() => nudge(-stepSize)} aria-label={t('Decrease', '減少')}><Minus size={22}/></button>
+        <input type="range" min={min} max={max} step={stepSize} value={value} aria-label={nameOf(k, lang)}
+          onChange={e => field(k, fixed(k, Number(e.target.value)))}/>
+        <button type="button" onClick={() => nudge(stepSize)} aria-label={t('Increase', '增加')}><Plus size={22}/></button>
+      </div>
+    </div>
+  }
+  function choiceButtons(k: Field) {
+    return <div className="news-choices" role="group" aria-label={nameOf(k, lang)}>{choices[k]!.map(([v, en, zh]) =>
+      <button type="button" key={v} aria-pressed={draft.fields[k] === v} className={draft.fields[k] === v ? 'selected' : ''}
+        onClick={() => field(k, draft.fields[k] === v ? '' : v)}>{t(en, zh)}</button>)}</div>
+  }
+  function measured(k: Field) {
+    const v = k as Vital
+    const chosen = draft.links[v]
+    const latest = [...(candidates[v] ?? [])].sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]
+    const link = (id?: string) => { const links = { ...draft.links }; if (id) links[v] = id; else delete links[v]; edit({ links }) }
+    if (chosen) {
+      const m = (candidates[v] ?? []).find(c => c.id === chosen)
+      return <div className="news-linked"><Check size={20}/><div><strong>{t('Using a recorded reading', '使用已記錄的量測')}</strong>
+        <span>{m ? prettyValue(m, true, lang) + ' ' + units[k] + ' · ' + stamp(m.observedAt, lang) : t('Linked reading', '已連結的量測')}</span></div>
+        <button type="button" onClick={() => link()}>{t('Enter instead', '改成手動輸入')}</button></div>
+    }
+    return <>
+      {latest && <button type="button" className={'news-use-latest' + (draft.fields[k] ? ' compact' : '')} onClick={() => link(latest.id)}>
+        {t('Use latest reading', '用最近一筆量測')} · <b>{prettyValue(latest, true, lang)} {units[k]}</b></button>}
+      {draft.fields[k] ? slider(k) : <button type="button" className="news-manual" onClick={() => field(k, fixed(k, ranges[k]![3]))}>
+        {t('Enter by hand', '手動輸入')}</button>}
+    </>
+  }
+  function poorToggle(k: Field) {
+    return <label className="news-quality news-poor"><input type="checkbox" checked={draft.poor.includes(k)}
+      onChange={e => edit({ poor: e.target.checked ? [...draft.poor, k] : draft.poor.filter(i => i !== k) })}/>
+      {t('Unusable reading', '量測品質不足')}</label>
+  }
+  function itemBody(k: Field) {
+    if (k === 'neurological_assessment' || k === 'supplemental_oxygen') return choiceButtons(k)
+    if (k === 'spo2_scale') return <>{choiceButtons(k)}{draft.fields.spo2_scale === 'scale2' && <>
+      <p className="news-sub">{nameOf('scale2Documented', lang)}</p>{choiceButtons('scale2Documented')}</>}</>
+    if (k === 'respiratory_rate') return <>{draft.fields[k] ? slider(k) : <button type="button" className="news-manual"
+      onClick={() => field(k, fixed(k, ranges[k]![3]))}>{t('Enter by hand', '手動輸入')}</button>}
+      <label className="news-inline">{nameOf('observationSeconds', lang)} (s)<input type="number" min={1} step="1"
+        value={draft.fields.observationSeconds ?? ''} onChange={e => field('observationSeconds', e.target.value)}/></label>
+      {poorToggle(k)}</>
+    return <>{measured(k)}
+      {k === 'temperature' && !draft.links.temperature && choiceButtons('temperatureSite')}
+      {k === 'temperature' && !draft.links.temperature ? <div className="news-pair">
+        <input aria-label={nameOf('temperatureMethod', lang)} placeholder={nameOf('temperatureMethod', lang)} maxLength={180}
+          value={draft.fields.temperatureMethod ?? ''} onChange={e => field('temperatureMethod', e.target.value)}/>
+        {poorToggle(k)}</div> : poorToggle(k)}</>
+  }
+  function phone() {
+    const current = items[Math.min(step, items.length - 1)]
+    const count = items.filter(i => filled(i.key)).length
+    return <section className="news2 news2-phone">
+      <div className="news-topbar">
+        <select aria-label={t('Assessment record','評估紀錄')} disabled={busy} value={active ?? ''} onChange={e => { select(e.target.value); setStep(0) }}>
+          <option value="">{t('New assessment','新評估')}</option>{history.map(a => <option key={a.id} value={a.id}>{stamp(a.observedAt,lang)} · {a.validCount}/8</option>)}
+        </select>
+        <strong>{t('Filled', '已填')} {count}/8</strong>
+        <span>{(draft.observedAt || draft.time + 'Z').slice(11, 16)} UTC</span>
+      </div>
+      {loadError && <p role="alert">{t('Could not load assessments.','無法載入評估。')} <button onClick={() => setRetry(n => n+1)}>{t('Retry','重試')}</button></p>}
+      {candidateError && <p role="alert">{t('Could not load linked readings.','無法載入可連結量測。')} <button type="button" onClick={() => setRetry(n => n+1)}>{t('Retry','重試')}</button></p>}
+      {ready && <form onSubmit={save} className="panel news-form">
+        <fieldset disabled={busy}>
+          <div className="news-items" role="tablist" aria-label={t('Assessment items', '評估項目')}>{items.map((item, i) =>
+            <button type="button" role="tab" key={item.key} aria-selected={i === step} className={(i === step ? 'selected ' : '') + (filled(item.key) ? 'done' : '')}
+              onClick={() => setStep(i)}>{filled(item.key) && <Check size={13} aria-label={t('filled', '已填')}/>}{t(item.en, item.zh)}</button>)}</div>
+          <div className="news-step" role="tabpanel">
+            <h3>{nameOf(current.key, lang)}</h3>
+            {itemBody(current.key)}
+          </div>
+          <div className="news-step-nav">
+            <button type="button" disabled={step === 0} onClick={() => setStep(step - 1)} aria-label={t('Previous', '上一項')}><ChevronLeft size={20}/></button>
+            <button className="primary" type="submit" disabled={busy || (!!record && !dirty)}>{t('Save assessment','儲存評估')}</button>
+            <button type="button" disabled={step === items.length - 1} onClick={() => setStep(step + 1)} aria-label={t('Next', '下一項')}><ChevronRight size={20}/></button>
+          </div>
+        </fieldset>
+        {error && <p role="alert">{error === 'conflict' ? t('Another session updated this assessment. Reload its latest version.','另一個工作階段已更新評估。請載入最新版本。') :
+          t('Could not save. Check the time and inputs, then retry.','儲存失敗，請檢查觀察時間和輸入後重試。')}
+          {error === 'conflict' && <button type="button" onClick={() => select(draft.id)}>{t('Reload','重新載入')}</button>}</p>}
+        <details className="news-help"><summary>{record ? t('Time, notes and result', '時間、說明與評估結果') : t('Time and notes', '時間與說明')}</summary>
+          <label>{t('Observation time (UTC)','觀察時間（UTC）')}<input type="datetime-local" required disabled={draft.version > 0}
+            value={draft.time} onChange={e => edit({ time: e.target.value })}/></label>
+          <p>{t('Enter readings taken together at this time, or use records within five minutes. You can save a partial assessment.',
+            '輸入同次、同時觀察的資料，或使用前後五分鐘內的量測。可先儲存已知項目，再回來補齊。')}</p>
+          <p>{t('Training records · ACVPU 2017. Record the scale selected by the clinician.','合成訓練紀錄 · ACVPU 2017。血氧尺度依醫療人員指定紀錄填寫。')} <a href="https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/" target="_blank" rel="noreferrer">RCP NEWS2</a></p>
+          {record && <AssessmentStatus item={record} lang={lang}/>}
+          {record && <button className="secondary" type="button" onClick={() => ask(record.id)}>{t('Ask about this NEWS2 assessment','詢問助手這次評估還缺什麼')}</button>}
+          <button className="secondary" type="button" onClick={measure}>{t('Open vital-sign measurement form','開啟生命徵象量測表單')}</button>
+        </details>
+      </form>}
+    </section>
+  }
+  if (stepped) return phone()
   return <section className="news2">
     <div className="panel news-history"><label>{t('Assessment record','評估紀錄')}
       <select aria-label={t('Assessment record','評估紀錄')} disabled={busy} value={active ?? ''} onChange={e => select(e.target.value)}>
@@ -196,3 +317,4 @@ export function AssessmentEvidence({ record, lang }: { record: Assessment; lang:
         {record.linkedRecords[k as Vital] && <small> · {label(record.linkedRecords[k as Vital]!.source,lang)} · {stamp(record.linkedRecords[k as Vital]!.observedAt,lang)} · {label(record.linkedRecords[k as Vital]!.quality,lang)}</small>}</dd></div>)}
   </dl></>
 }
+
