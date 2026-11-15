@@ -113,3 +113,9 @@ With only the 3D service running, you can also explore four scripted scenarios. 
 | [Historical JSON example](health-system/examples/crew-dataset.example.json) | Select this file in the monitoring station's dataset importer to demonstrate the `crew-dataset/1` historical format. |
 
 `health-system/backend/radiation*.py` implements accumulation, persistence and APIs; `dataset_import.py` and `body_import.py` handle imports. `RadiationPanel.tsx` and `DatasetImport.tsx` provide the medical UI; `astro-hiyoko-demo/radiation-monitor.js` connects the cabin display. See the [health-system guide](health-system/README.md) and [cabin guide](astro-hiyoko-demo/README.md).
+
+## Hardware simulation
+
+- **Wokwi circuit simulation:** Interactive simulation of the ESP32-based biomedical sensing system, including sensor connections and firmware.
+
+  [Wokwi Simulation](https://wokwi.com/projects/480433596780917761)
