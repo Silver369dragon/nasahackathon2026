@@ -96,6 +96,23 @@ On NEWS2, **Save three-layer report** pins the exact assessment version, linked 
 
 The default Windows database is `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`. To change it, set `HEALTH_DB_PATH` to a full local path outside a synced folder. Everyday use works with `runId=null`. Manual writes use the signed-in session and a CSRF token. Sensor writes use per-device bearer credentials. [API reference](http://127.0.0.1:8000/docs) · [Service readiness](http://127.0.0.1:8000/v1/health/ready)
 
+### Saved-record snapshot (2026-11-15)
+
+The [database snapshot ZIP](examples/training-records-20261115.zip) preserves 650,930 measurements, 30 fixed baselines, 145,530 statistical analyses, 900 NEWS2 versions, 25 body scans and the other records saved in the local database at export time. Its [verification manifest](examples/training-records-20261115.manifest.json) lists table counts, preserved-record fingerprints, SHA-256 hashes and integrity checks. This is a point-in-time snapshot of synthetic training records; subsequent local activity does not automatically update the file in Git.
+
+Sessions, push subscriptions/queued deliveries and local signing keys were removed. Preserved records match the export copy table by table, and the demo archive path is repository-relative. Sign in and enable device notifications again after restoring; the application generates new local keys.
+
+The ZIP uses LZMA compression; extract it with the Python command below. After initial setup, run these commands in PowerShell from `health-system` to extract into a new local directory and start the application. Allow about 1.3 GB for the extracted database. If the destination already exists, choose another name to preserve existing data.
+
+```powershell
+$restore = Join-Path $env:LOCALAPPDATA 'NasaHealthSystem\snapshot-20261115'
+New-Item -ItemType Directory -Path $restore -ErrorAction Stop | Out-Null
+.\.venv\Scripts\python.exe -m zipfile -e .\examples\training-records-20261115.zip $restore
+if ($LASTEXITCODE -ne 0) { throw 'Database snapshot extraction failed.' }
+$env:HEALTH_DB_PATH = Join-Path $restore 'training-records-20261115.sqlite3'
+.\start.cmd
+```
+
 ### NEWS2 observations
 
 1. Open the assessment as Mira and set the UTC observation time. Enter respiratory rate, heart rate, oxygen saturation, systolic pressure and temperature, or link original measurements. Linked respiratory rate uses its original `context.observationDuration`; manual duration cannot fill a linked record's missing context.

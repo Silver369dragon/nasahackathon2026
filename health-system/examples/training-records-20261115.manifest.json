@@ -1,0 +1,244 @@
+{
+  "format": "sanitized-sqlite-snapshot/1",
+  "sourceFile": "training.sqlite3",
+  "snapshotStartedAt": "2026-11-15T15:35:40.315599+00:00",
+  "exportedAt": "2026-11-15T15:38:41.843597+00:00",
+  "baseCommit": "e23f3c72f2c69504a31922274f942c88402fdd3f",
+  "databaseFile": "training-records-20261115.sqlite3",
+  "databaseBytes": 1189732352,
+  "databaseSha256": "17c576f2a9e95af9bd43d2229250d1055a310da825994f2ffc33675e2498064d",
+  "integrityCheck": "ok",
+  "foreignKeyViolations": 0,
+  "preservedRecordFingerprintsMatch": true,
+  "credentialScan": "passed",
+  "removedRows": {
+    "sessions": 20,
+    "push_subscriptions": 0,
+    "push_queue": 0
+  },
+  "removedSettings": [
+    "cursor_secret",
+    "push_keys"
+  ],
+  "normalizedFields": {
+    "demo_config.archivePath": "output/health-demo-v3/crew-demo-v3.zip"
+  },
+  "tableCounts": {
+    "alerts": 0,
+    "analysis_revisions": 0,
+    "baseline_audit": 30,
+    "baseline_commands": 30,
+    "baseline_exclusions": 0,
+    "baseline_heads": 30,
+    "baseline_lifecycle_commands": 0,
+    "baseline_states": 30,
+    "baseline_versions": 0,
+    "body_scans": 25,
+    "changes": 357,
+    "chat_turns": 0,
+    "crew": 5,
+    "daily_tasks": 15,
+    "demo_config": 1,
+    "demo_payload": 1,
+    "demo_profiles": 5,
+    "demo_runs": 0,
+    "devices": 5,
+    "emergencies": 0,
+    "fixed_analyses": 145530,
+    "fixed_baselines": 30,
+    "health_reports": 0,
+    "knowledge_documents": 6,
+    "knowledge_fts": 14,
+    "knowledge_fts_config": 1,
+    "knowledge_fts_content": 14,
+    "knowledge_fts_data": 5,
+    "knowledge_fts_docsize": 14,
+    "knowledge_fts_idx": 3,
+    "measurements": 650930,
+    "news2_versions": 900,
+    "packets": 44,
+    "push_queue": 0,
+    "push_subscriptions": 0,
+    "radiation_events": 0,
+    "radiation_history": 10,
+    "radiation_import_archives": 1,
+    "radiation_missions": 1,
+    "radiation_profiles": 5,
+    "radiation_samples": 0,
+    "radiation_segments": 0,
+    "receipts": 44,
+    "rule_definitions": 1,
+    "rule_evaluations": 44,
+    "rule_progress": 5,
+    "sessions": 0,
+    "settings": 1,
+    "summaries": 5,
+    "task_badges": 0,
+    "task_days": 1
+  },
+  "preservedTableFingerprints": {
+    "alerts": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "analysis_revisions": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "baseline_audit": {
+      "count": 30,
+      "rowHashSumSha256": "e2d749a39c942c203122c25262070191d08ccb3e448f8ebc2073cb72f47fde12"
+    },
+    "baseline_commands": {
+      "count": 30,
+      "rowHashSumSha256": "f7c7ffe8d004a00970a27fd4302a65ff38fa3af89735edbfe002d0c72b3077e9"
+    },
+    "baseline_exclusions": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "baseline_heads": {
+      "count": 30,
+      "rowHashSumSha256": "5442853a251cfef3599650da40c41a60628ed7d7a28fa8f40c3c3319d27221c1"
+    },
+    "baseline_lifecycle_commands": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "baseline_states": {
+      "count": 30,
+      "rowHashSumSha256": "36333e2c62cb31a938af812bf29e26e404eb9039e1f9786c81268c8ec7d721e6"
+    },
+    "baseline_versions": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "body_scans": {
+      "count": 25,
+      "rowHashSumSha256": "b5f6314b35f02b39a6b0aa3577bc19ca73bc1b9d7a7836d8bbd7f15650e5cfd7"
+    },
+    "changes": {
+      "count": 357,
+      "rowHashSumSha256": "7e346590e01db1a297652b4afe1a631b707f5b635b5ce45b16dc68f088eda10f"
+    },
+    "chat_turns": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "crew": {
+      "count": 5,
+      "rowHashSumSha256": "cab82974933934a106cceaabe46525940e3005f20503e9547a838275f180ef62"
+    },
+    "daily_tasks": {
+      "count": 15,
+      "rowHashSumSha256": "2046b0b2d6ba9d8bed818f41e4a24ebc1e22f9dc336be44694844be983b83941"
+    },
+    "demo_payload": {
+      "count": 1,
+      "rowHashSumSha256": "df98a2eb04104e2d7e80a770f26bfb04e26d26499b44d4bd820faa76459680a6"
+    },
+    "demo_profiles": {
+      "count": 5,
+      "rowHashSumSha256": "1e0eca26d94ffe655e14b6193bf13981facd13f26d6e3307c0f58e41c26db072"
+    },
+    "demo_runs": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "devices": {
+      "count": 5,
+      "rowHashSumSha256": "b2ffd53f90ffdf5b3f0ebaa043ba624d140df135d5029a9ed69ba90787cd8814"
+    },
+    "emergencies": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "fixed_analyses": {
+      "count": 145530,
+      "rowHashSumSha256": "c91a377daaa1e4941a0f8d4f13d6bde7d945a04ebd8812b4da020d2e417db696"
+    },
+    "fixed_baselines": {
+      "count": 30,
+      "rowHashSumSha256": "04a119b6b9e53ae9a9af678850149ea8b38d2fa3366796d025f4c3be18bca0b2"
+    },
+    "health_reports": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "knowledge_documents": {
+      "count": 6,
+      "rowHashSumSha256": "f4bb5af1df9fa6bc52c84efac874094aac3d85f625149b902f1641b63f30d717"
+    },
+    "measurements": {
+      "count": 650930,
+      "rowHashSumSha256": "d4f5ffcb150036aea01d0bc9320819dc60b596591d82cda67683f6685e040c8f"
+    },
+    "news2_versions": {
+      "count": 900,
+      "rowHashSumSha256": "e1ed8bf7f3c1bfea1ad5b1d237e4d35c98680ffe46d0a4eadba58bac35748daf"
+    },
+    "packets": {
+      "count": 44,
+      "rowHashSumSha256": "81508442d63a127c1c9cee248a146bd379e4927ffea23f63b6b27dbd38b38878"
+    },
+    "radiation_events": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "radiation_history": {
+      "count": 10,
+      "rowHashSumSha256": "5d0939fc4ff46c65ff20b42a4a52e978be2e2c781fd3fb97eeb246c13e449a92"
+    },
+    "radiation_import_archives": {
+      "count": 1,
+      "rowHashSumSha256": "8b629e52968af01361f06972f26c2b7e52a6287cf05a0ea43f7bf7e9b16f9782"
+    },
+    "radiation_missions": {
+      "count": 1,
+      "rowHashSumSha256": "adb7473648e3e41c61e67fb861100d113490565a9f78df2ceb6248992394eeb5"
+    },
+    "radiation_profiles": {
+      "count": 5,
+      "rowHashSumSha256": "43594c6a65dcd76ee5f89ecf6503187e633142b95306abc1637f94d926492a59"
+    },
+    "radiation_samples": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "radiation_segments": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "receipts": {
+      "count": 44,
+      "rowHashSumSha256": "223b83b745120b26c92217261fae072e99d5e63117845162d4a687b6ded18d94"
+    },
+    "rule_definitions": {
+      "count": 1,
+      "rowHashSumSha256": "e13ce343daf32d50672fffbdca4b8c94be33a05a93a51dec0ec6503f32aeda84"
+    },
+    "rule_evaluations": {
+      "count": 44,
+      "rowHashSumSha256": "e3f364c52c980f24feb67fb4e4ad49bb9e2f2edbae5be37411532c9d29c1972a"
+    },
+    "rule_progress": {
+      "count": 5,
+      "rowHashSumSha256": "3455c40f784bd8aff49a9738b279bd852c89e810cd1c1e54fd2af900eee397fb"
+    },
+    "summaries": {
+      "count": 5,
+      "rowHashSumSha256": "88ca374fc3abb3906452b642a9ac30c3d393fea1435b1c6ef98862fef4117bad"
+    },
+    "task_badges": {
+      "count": 0,
+      "rowHashSumSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "task_days": {
+      "count": 1,
+      "rowHashSumSha256": "5b595a59be93c7d3a925a1822c38dd7f10d231319cfebf6349ad9e0c27d629b5"
+    }
+  },
+  "compression": "ZIP_LZMA; extract with Python zipfile",
+  "archiveSha256": "658ff7550e97adeda766ff5bcd56acbf8ee72b83ff9314187f8e0cffb491b5ba",
+  "archiveBytes": 74275527
+}
