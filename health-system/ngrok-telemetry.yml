@@ -1,0 +1,8 @@
+# Public firmware ingress; device Bearer authentication remains in the API.
+on_http_request:
+  - expressions:
+      - "!((req.method == 'POST' && req.url.path == '/v1/telemetry') || (req.method == 'GET' && req.url.path == '/v1/health/ready'))"
+    actions:
+      - type: deny
+        config:
+          status_code: 404
