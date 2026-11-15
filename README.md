@@ -4,9 +4,22 @@
 
 Astro Hiyoko is shipboard health monitoring software designed for space missions. It helps astronauts collect health indicators, understand changes in their own health and take follow-up action through reminders, health information and crew coordination. The project responds to the NASA Space Apps challenge [Create Health Monitoring Software for Astronauts on Space Missions](https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/).
 
-Our proposed three-layer analysis architecture combines **rule-based assessment, personalized statistical analysis and AI explanations grounded in evidence**. Crew members manage their records in a personal app, monitoring staff review the whole crew at a monitoring station, and a shared board displays the latest readings and alerts.
+**We implement component scores, the complete total score and risk classification according to RCP NEWS2 (2017), and combine them with personal-baseline analysis and evidence-grounded AI explanations; data-quality checks, visual indicators and onboard alerts are custom features of our system.** Crew members manage their records in a personal app, monitoring staff review the whole crew at a monitoring station, and a shared board displays the latest readings and alerts.
 
 The current prototype runs locally, stores measurements in SQLite and provides five fictional crew accounts for training with manual entries and synthetic sensor data.
+
+**Version scope:** The three-layer assessment progress below corresponds to [health-assessment implementation 3eb8fa0](https://github.com/Silver369dragon/nasahackathon2026/commit/3eb8fa0558a66fac65c7019933bec7183396c9ef). That code is on `feat/ai-rag` and is not yet included in this hardware branch; to use these features, follow the [health-system guide for that version](https://github.com/Silver369dragon/nasahackathon2026/blob/3eb8fa0558a66fac65c7019933bec7183396c9ef/health-system/README.md).
+
+## Contents and guides
+
+- [What the health system does](#what-the-health-system-does)
+- [Three-layer health analysis architecture](#three-layer-health-analysis-architecture)
+- [Start the health system on Windows](#start-the-health-system-on-windows)
+- [Optional demo in the 3D habitat](#optional-demo-in-the-3d-habitat)
+- [Added features and demonstration datasets](#added-features-and-demonstration-datasets)
+- [Hardware simulation](#hardware-simulation)
+- [Monitoring indicators and simulation values](numerical.md)
+- [Telemetry firmware and backend integration](firmware/README.md)
 
 ## What the health system does
 
@@ -15,7 +28,7 @@ The current prototype runs locally, stores measurements in SQLite and provides f
 | Vital-sign monitoring | Record heart rate, oxygen saturation, blood pressure and temperature. Review each reading's time, source, measurement method and data quality. |
 | Personal health trends | Explore changes over different periods, compare readings by source and method, and open the original measurements. |
 | Personalized statistical analysis | Compare readings with personal history. Use Z-scores and an exponentially weighted moving average (EWMA) to examine deviations and sustained changes. |
-| NEWS2 observation records | Assemble physiological measurements, consciousness and oxygen information for one observation. Save partial entries and identify missing or unusable inputs. |
+| NEWS2 observations and assessment | Assemble physiological measurements, consciousness and oxygen information for one observation. Save component scores, the complete total score and risk classification; identify missing or unusable inputs in partial entries. |
 | Daily health management | Log exercise time, complete measurements and post-exercise self-assessments, receive reminders, and review personal badges and team completion counts. |
 | Health assistant | Ask about personal records, training and alerts in English or Traditional Chinese. Follow up on an answer and open the original evidence it cites. |
 | Help requests and automatic alerts | Notify crewmates and the monitoring station with one tap. Use a designated synthetic heart-rate scenario to demonstrate automatic alerts. |
@@ -25,39 +38,44 @@ The current prototype runs locally, stores measurements in SQLite and provides f
 
 The full data catalog defines **33 monitoring items** across emergency monitoring (12), daily health (9) and long-term monitoring (12). The current main measurement workflow supports heart rate, oxygen saturation, blood pressure and temperature. The remaining catalog entries guide further expansion.
 
+See the [monitoring indicators and simulation baseline worksheet](numerical.md) for the team's physiological test ranges, radiation simulation values, reasons for selecting the indicators and references.
+
 ## Three-layer health analysis architecture
 
 | Layer | Purpose | Processing and output |
 | --- | --- | --- |
-| **Layer 1 — Rule-based assessment** | Check whether readings meet specified conditions and whether an assessment has sufficient data. | Check data quality, timing and context before applying versioned rules. The design includes a NEWS2 component and total-score interface, alert reasons, triggering evidence and associated procedures. |
-| **Layer 2 — Personalized statistical analysis** | Understand how a reading differs from that crew member's usual state. | Establish a reference from historical readings with matching sources, methods and contexts. Calculate Z-scores to express deviations and use EWMA to examine sustained changes. |
-| **Layer 3 — LLM + RAG explanations** | Turn measurements, assessment results and retrieved knowledge into explanations crew members can understand. | Retrieve authorized personal records and local documents. Explain observations, reasons and missing data, provide relevant action links, and attach traceable sources. |
+| **Layer 1 — Rule-based assessment** | Check assessment completeness, calculate NEWS2 and identify conditions requiring attention through separate rules. | Save versioned NEWS2 component scores, the complete total score and risk classification; custom system rules separately retain alert reasons, triggering evidence and associated procedures. |
+| **Layer 2 — Personalized statistical analysis** | Understand how a reading differs from that crew member's usual state. | Establish fixed baselines from historical readings with matching sources, methods and contexts. Manage candidate review, activation, freezing and rebuilding, and save versioned Z-scores and EWMA per measurement. |
+| **Layer 3 — LLM + RAG explanations** | Turn measurements, assessment results and retrieved knowledge into explanations crew members can understand. | Save three-layer reports that pin measurement, scoring, baseline-analysis and knowledge versions. Explain the same authorized evidence and attach traceable sources. |
 
-Layer 1 uses explicit rules to identify conditions that need attention. The NEWS2 design draws on six physiological parameters and supplemental oxygen information. The system first checks input completeness, then uses an enabled scoring configuration for calculation. [Royal College of Physicians NEWS2 reference](https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/)
+Layer 1 calculates seven components from the six physiological parameters and supplemental oxygen information in RCP NEWS2 (2017). Complete, usable inputs produce a total score; the official classification rules determine the saved risk band and single-component scores of three. Data-quality and time-window checks, decimal-input normalization, visual indicators and onboard alerts are separate system designs. These engineering policies and workflows are not part of the official RCP specification, and displaying a NEWS2 risk band does not automatically trigger an onboard notification. [Royal College of Physicians NEWS2 reference](https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/)
 
 Layer 2 accounts for individual differences. The same heart rate can represent different deviations for two crew members. A Z-score expresses the difference from a personal mean in standard deviations. EWMA smooths successive deviations to help reveal whether a change persists.
 
-Layer 3 uses a large language model (LLM) with retrieval-augmented generation (RAG) to explain the evidence. A crew member can ask which record supports an explanation or what is missing from an assessment, then open the referenced record or procedure card.
+Layer 3 uses a large language model (LLM) with retrieval-augmented generation (RAG) to explain a saved three-layer assessment report. A crew member can ask which record supports an explanation or what is missing from the assessment, then open the record or procedure card cited by that same report. AI explanations do not rewrite saved scores, baselines or evidence.
 
-The diagram shows the proposed flow between the three layers.
+The diagram shows the data flow through assessment, saved reports and explanations.
 
 ```mermaid
 flowchart TD
     A["Health measurements and personal records"] --> B["Data quality, timing and context checks"]
     B --> C["Layer 1: Rules and scoring"]
     B --> D["Layer 2: Personal reference and statistics"]
-    C --> E["Layer 3: LLM + RAG explanations"]
-    D --> E
-    K["Local knowledge and procedure cards"] --> E
-    C --> F["Alerts and crew notifications"]
+    C --> R["Save three-layer report and evidence versions"]
+    D --> R
+    K["Versioned local knowledge and procedure cards"] --> R
+    R --> E["Layer 3: LLM + RAG explanations"]
+    C -->|Custom alert rules| F["Alerts and crew notifications"]
     E --> G["Source-linked explanations and action links"]
 ```
 
-### Current implementation
+### Completed implementation as of 2026-11-15
 
-- **Layer 1** includes synthetic heart-rate alerts, NEWS2 observation records, and completeness and quality checks. The NEWS2 score remains empty while its scoring configuration is awaiting activation.
-- **Layer 2** compares readings with matching data from the preceding seven days and calculates Z-scores and EWMA. Formal reference approval, freezing and rebuilding remain part of the architecture roadmap.
-- **Layer 3** provides personal-record queries, local knowledge retrieval, citations and model-answer verification. Full integration of all three layers' outputs remains an expansion of the design.
+- **Layer 1** implements seven NEWS2 component scores, the complete total score, risk classification and single-component scores of three, retaining scoring, interpretation and input-normalization versions. The 8/8 indicator means required-input completeness; missing, poor-quality or out-of-window inputs, or disabled scoring, leave the total unavailable rather than zero. Synthetic heart-rate alerts use separate system rules.
+- **Layer 2** supports six fixed personal baselines: heart rate, SpO₂, respiratory rate, systolic pressure, diastolic pressure and temperature. It provides candidate review and activation, freezing, resumption, rebuilding, retirement, exclusion periods and an audit history. Each analysis retains its measurement, baseline version, Z-score and EWMA; explicit recalculation saves a new revision without rewriting historical evidence.
+- **Layer 3** saves three-layer assessment reports that pin the selected NEWS2 version, precisely linked measurements and baseline analyses, rule evidence, and knowledge and procedure versions. The assistant explains the same report and preserves its snapshot across follow-up questions; offline, timed-out or rejected model output falls back to local evidence. Full reports are owner-only, while monitoring staff can view authorized summaries.
+
+After saving an observation on the NEWS2 page, save a three-layer assessment and ask the assistant about that report. NEWS2, personal statistics and AI explanations remain separate rather than becoming a single combined health score. This completed implementation covers synthetic-data training features; it does not establish clinical validation or acceptance for deployment on a space mission.
 
 ## Start the health system on Windows
 
@@ -119,3 +137,5 @@ With only the 3D service running, you can also explore four scripted scenarios. 
 - **Wokwi circuit simulation:** Interactive simulation of the ESP32-based biomedical sensing system, including sensor connections and firmware.
 
   [Wokwi Simulation](https://wokwi.com/projects/480433596780917761)
+
+- **Telemetry firmware and backend integration:** The [firmware guide](firmware/README.md) explains how the ESP32 gateway sends synthetic data for five crew members to the medical backend, including the packet format, Wokwi setup, verification results and current limitations.
