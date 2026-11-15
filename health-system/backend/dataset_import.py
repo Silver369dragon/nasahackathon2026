@@ -81,6 +81,9 @@ def register_dataset_import(app: FastAPI, path: Path, runtime: RadiationRuntime)
         fingerprint = digest(raw)
         initial_anchor = runtime.monotonic_ms()
         with runtime.lock, connection(path, write=True) as db:
+            from .demo_store import other_source_blocked
+            if other_source_blocked(db):
+                raise Problem(409, 'DEMO_SOURCE_ACTIVE', 'Stop the demonstration before importing another dataset.')
             db.execute('CREATE TABLE IF NOT EXISTS dataset_imports(id TEXT PRIMARY KEY, hash TEXT NOT NULL, result TEXT NOT NULL)')
             prior = db.execute('SELECT hash,result FROM dataset_imports WHERE id=?', (body.datasetId,)).fetchone()
             if prior:

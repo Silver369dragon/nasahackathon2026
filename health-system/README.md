@@ -74,18 +74,44 @@ The optional cloud assistant reads `OPENAI_API_KEY` from the server environment 
 
 Choose a one-hour, 24-hour, seven-day, 30-day or custom UTC interval on the trends page. Each series groups readings by source, method, context and data type. Missing or poor-quality readings break the line. Select a point to inspect the original record. Dense charts keep the first, last, highest and lowest value in each display bucket while the statistics use all valid samples.
 
-The comparison window covers the preceding seven days under matching conditions. With at least 30 valid samples and sufficient variance, the app shows a Z-score and an exponentially weighted moving average with weight 0.2. The simulator contributes at most one valid sample per second. This calculation is versioned as `training-window-v1`.
+Heart rate, SpO₂, respiratory rate, systolic pressure, diastolic pressure and temperature support fixed baselines. Review the preceding seven days before choosing **Create fixed baseline**. At least 30 valid samples and sample SD greater than `1e-9` are required. Each crew/metric/source/method/unit/context series has one current version; every version permanently preserves its sample IDs, dates and parameters. Queries never replace a baseline.
+
+Creation analyzes existing matching readings at or after the cutoff. Later manual, live and imported readings save their analysis in the measurement transaction. `fixed-baseline-v2` records the measurement, baseline version, algorithm, segment, Z-score and EWMA (weight 0.2); existing v1 records remain unchanged. Unusable quality, a cadence change or a gap exceeding four times `context.analysisCadenceSeconds` starts a new segment. Cadence is metadata, not a comparison key; rest and exercise remain separate. Mock series use the first valid representative per UTC second. Late and duplicate-second inputs retain explicit statuses without changing earlier EWMA results.
+
+**Baseline versions and review** provides candidates, explicit approval, exclusions, rebuild, freeze/resume, unwell markers and retirement with reasons and audit history. Exclusions invalidate pending candidates, including before first activation. Frozen parameters still calculate; replacement requires explicit resume. Related existing HR alerts freeze the matching series and prevent resume/activation while active; clearing does not auto-resume. Real measurements require a separately approved profile.
+
+**Ask about this analysis** carries the immutable `analysisId`. **Save recalculated revision** creates a new ID and `analysisRevision` for one selected observation with a separate EWMA segment, preserving historical and streaming state. Charts use their saved analysis's baseline and show the current version separately. NEWS2, six statistics, body and radiation remain separate, with no aggregate health score or clinical assessment.
+
+Private crew APIs: `POST /v1/baselines` (`commandId`, owned `measurementId`, `referenceTo`; CSRF required), `GET /v1/baselines/{id}`, `GET /v1/analyses/{id}` and `/v1/assistant/records/analysis/{id}`. Assistant queries accept `analysisId`. Additive tables use the existing SQLite database; upgrading does not automatically activate a baseline.
+
+Version APIs: `GET /v1/baselines?measurementId=...`, `POST /v1/baselines/candidates/new`, `POST /v1/baselines/{id}/actions`, and `POST /v1/analyses/{id}/recalculate`. Commands require CSRF, `commandId`, `expectedRevision` and a reason. Candidates specify owned measurement ID and cutoff. Restart initializes additive tables without rewriting saved baseline/analysis JSON.
+
+### Saved three-layer reports
+
+The phone NEWS2 form also offers **Save three-layer report** after saving the observation. In the visual trends view, choose **Baseline & detailed analysis** to review candidates, manage versions and open saved analysis citations; **Back to trend summary** returns to the compact chart.
+
+On NEWS2, **Save three-layer report** pins the exact assessment version, linked measurements and saved analyses/baselines, existing rule/alert evidence, quality/time/source limits and knowledge/procedure versions. Manual values never borrow unrelated statistics. Diastolic pressure is explicitly outside NEWS2's linked inputs. Without NEWS2, latest measurements remain separate with comparison limits.
+
+**Ask about this report** passes the same `reportId`; related follow-ups retain the snapshot while new task/measurement questions can switch topics. The model cannot override scores, required facts or citations. Offline, timed-out or rejected output falls back to local facts, with template/model/verification metadata. `POST /v1/health-reports` accepts `commandId` and optional assessment ID/version; GET lists summaries for owners/monitors, while full reports and assistant sources are owner-only and unavailable to public boards. Replays do not duplicate reports; GET never recalculates and later changes cannot rewrite snapshots.
 
 The default Windows database is `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`. To change it, set `HEALTH_DB_PATH` to a full local path outside a synced folder. Everyday use works with `runId=null`. Manual writes use the signed-in session and a CSRF token. Sensor writes use per-device bearer credentials. [API reference](http://127.0.0.1:8000/docs) · [Service readiness](http://127.0.0.1:8000/v1/health/ready)
 
 ### NEWS2 observations
 
-1. Open the assessment as Mira and set the UTC observation time. Enter the four core vital signs directly or select existing heart rate, oxygen saturation, systolic pressure and temperature records.
-2. Add respiratory rate and counting duration, consciousness level (ACVPU), room air or supplemental oxygen, and the designated oxygen saturation scale. Scale 2 requires confirmation of a clinical designation. For directly entered temperature, record its site and method. You can save a partial observation. [Royal College of Physicians NEWS2 resource](https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/)
-3. Ask the assistant what is missing from this assessment. It links its answer to the version you asked about. Later edits create a new version.
-4. Open the monitoring station to see the latest completeness, gaps, observation time and valid readings per crew member. The detailed assessment is restricted to its owner and monitoring role.
+1. Open the assessment as Mira and set the UTC observation time. Enter respiratory rate, heart rate, oxygen saturation, systolic pressure and temperature, or link original measurements. Linked respiratory rate uses its original `context.observationDuration`; manual duration cannot fill a linked record's missing context.
+2. Record counting duration for manually entered respiratory rate, consciousness (ACVPU), air or supplemental oxygen, and the prescribed saturation scale. Scale 2 requires explicit selection and a documented clinical designation; it is never inferred from readings. Direct temperature entry needs site and method. Partial observations can be saved. [RCP NEWS2 scoring chart](https://www.rcp.ac.uk/media/alxev00t/news2-chart-1_the-news-scoring-system_0_0.pdf)
+3. Review the saved training total and seven component scores (six physiological parameters plus oxygen). The eight-input completeness count includes scale selection. Missing, poor-quality or out-of-window inputs leave the full total unavailable; valid components remain visible. A dash is not zero.
+4. Select **Ask about this NEWS2 assessment**. The assistant cites the saved scores, scoring version and gaps. Later edits create a new record version and preserve earlier citations. The monitor receives the latest summary; full records are owner-only, unavailable to other crew and the public board.
 
-The demo accepts existing measurements within five minutes on either side of the observation. Poor-quality, missing and out-of-window values do not count toward completeness. Once all eight items are present, the app marks the observation complete. The score stays blank pending approval of the ship’s scoring configuration.
+The five-minute linking window is a training engineering setting. `HEALTH_NEWS2_PROFILE` defaults to `rcp-news2-2017-training-v1`; set it to `disabled` before startup to disable scoring of new records. Unknown versions also disable scoring, without falling back. Restart the service after changing configuration. The form displays the current setting from `/v1/news2/config/current`.
+
+Each saved version stores `componentScores`, `news2Score`, `scoringInputs`, `ruleSetVersion`, `normalizationVersion` and configuration status. Configuration changes, restarts and request replays never recalculate existing versions. Legacy completeness records remain unchanged; save a new version to calculate a score.
+
+The application's `decimal-half-up-v1` training input policy rounds respiratory rate, saturation, systolic pressure and pulse to whole numbers, and temperature to 0.1°C. For example, 18.5 breaths/min scores as 19. Both original and scoring values are retained and visible. This is an application engineering policy, not an RCP decimal-measurement rule. Results are for synthetic training only, with no clinical grading, diagnosis, treatment or automatic escalation.
+
+Scoring source: Royal College of Physicians. *National Early Warning Score (NEWS) 2: Standardising the assessment of acute-illness severity in the NHS*. Updated report of a working party. London: RCP, 2017. The Chinese wording has not been specifically approved by the RCP; refer to the English original. [Additional Scale 2 guidance](https://www.rcp.ac.uk/media/umzn4ntq/news2_additional-guidance-002-_0.pdf)
+
+New NEWS2 records also save single-3 parameters, `riskBand`, `interpretationVersion` and the [RCP Chart 2](https://www.rcp.ac.uk/media/2acdezkd/news2-chart-2_news-thresholds-and-triggers_0.pdf) source. Missing totals have no aggregate band. Legacy chart comparisons are labelled as not saved in the original record. This training display creates no new broadcasts or clinical response instructions.
 
 ## Body hologram demo
 
@@ -116,6 +142,24 @@ Defaults: `HEALTH_RADIATION_ENABLED=1`, `HEALTH_RADIATION_SOURCE=simulation`. Fo
 
 ## Import demonstration history
 
+### 30-day history and five-minute playback
+
+The [v3 archive](../output/health-demo-v3/crew-demo-v3.zip) follows the [synthetic data contract](DATA_DEMO_FORMAT.zh-TW.md): five fictional profiles, 216,000 historical packets, 900 historical NEWS2 observations, 25 body scans and 1,505 playback packets over 300 seconds. From the repository root, prepare a new candidate database:
+
+```powershell
+.\health-system\.venv\Scripts\python.exe .\health-system\demo_prepare.py --dataset .\output\health-demo-v3\crew-demo-v3.zip --output "$env:LOCALAPPDATA\NasaHealthSystem\crew-demo-v3-candidate.sqlite3"
+```
+
+`--dataset` and `--output` are required. Preparation validates the ZIP before writing, refuses an existing target or `.building` file, and creates 30 resting baselines from `[preparedAt − 14 days, preparedAt − 7 days)`. It does not replace the running service's database. Use a new candidate path for another preparation; keep existing records and sessions intact.
+
+When the medical service uses a prepared database, open the cabin's `/playback.html`, sign in as `monitor`, and select **開始新的示範** / **停止示範**. Each start creates one backend-owned 300-second run; completion retains its saved results. Refreshing or closing the control tab does not restart or stop it. Connected mode has no automatic loop, pause or speed control. Stop other senders; competing mock ingestion is rejected while playback runs.
+
+History ends at `preparedAt − 60 seconds`; playback begins at its actual `startedAt`. Preparation time and start time are separate anchors: the real gap between them is not filled or retimestamped. Summary cards distinguish saved history, the current run and stale/unavailable data. The five-minute script adds no body changes; radiation adds its own dose, independently of NEWS2.
+
+`GET /v1/demo/playback` requires an authenticated session. `GET /v1/demo/profile?crewId=...` and `/v1/demo/assessment?crewId=...` require the owner or `monitor`; the latter returns profile, playback, six baselines, saved NEWS2, body and radiation summaries. `POST /v1/demo/playback/start` and `/stop` require `monitor`, CSRF and `{commandId}`. These APIs do not expose personal profiles to the public board. Expected answers in the archive are test-only, never runtime inputs; synthetic examples do not prove clinical accuracy, real-device delivery or completed deployment acceptance.
+
+### Separate historical JSON importer and legacy CLI
+
 Sign in to `/system` as `monitor` / `orbital-demo`, select [crew-dataset.example.json](examples/crew-dataset.example.json) in the dataset importer, review the summary and import it. The `crew-dataset/1` JSON format supports measurements, body scans and radiation archives, up to 32 MiB. Repeating the same dataset ID and content does not duplicate records; different content requires a new ID. Observations must be historical, not in the future. Import writes to the active database; set a separate `HEALTH_DB_PATH` for an isolated demonstration.
 
-This JSON demonstrates import and historical views. The [60-second ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) instead feeds live synthetic telemetry through the cabin's `/playback.html`; the formats are not interchangeable. Each cycle contains 300 packets and 1,215 metrics across five crew, including heart rate, SpO2, respiratory rate, missing work-of-breathing values, and temperature/blood pressure at the first second. All data is synthetic demonstration data.
+The [legacy 60-second ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) remains usable by `dataset_player.py --dataset ... --inspect` (or the separate CLI sender). It contains 300 packets and 1,215 metrics per cycle. The current cabin `/playback.html` does not read it. Legacy ZIP, v3 `crew-demo/1` archive and `crew-dataset/1` historical JSON are distinct formats; do not interchange them.

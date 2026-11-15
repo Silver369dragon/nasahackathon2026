@@ -293,8 +293,8 @@ function transformSnapshot(object) {
   };
 }
 
-export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN', 'TIMMY', 'NOA', 'SOL']} = {}) {
-  const [operator, sean, timmy, support, technician] = ship.people;
+export function createFilmActors(ship, {scripted = true, names = ['LIN', 'KAI', 'MIRA', 'NOA', 'SOL'], edition = 'original'} = {}) {
+  const [operator, kai, mira, support, technician] = ship.people;
   const cast = ship.people.map((person, index) => {
     const detailArms = person.arms.map((original, i) => makeArm(person.body, original, i * 2 - 1));
     const detailLegs = person.legs.map((original, i) => makeLeg(person.body, original, i * 2 - 1));
@@ -306,13 +306,13 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   const offline = sensorFace('OFFLINE', '—', '#ffc87b');
   let liveSensor = null;
   const standby = sensorFace('SPARE', '02', '#a7e6db');
-  const band = joint(timmy.detailArms[0].wrist, 0, 0.070, 0.090);
+  const band = joint(mira.detailArms[0].wrist, 0, 0.070, 0.090);
   band.rotation.y = 0.22;
   part(band, graphite, [0.170, 0.110, 0.078], [0, 0, -0.008]);
   const old = makeSensor(band, ok, graphite);
   old.module.name = 'crew-wrist-sensor';
   old.module.position.z = 0.026;
-  const pocket = joint(sean.body, 0.26, 0.63, 0.21);
+  const pocket = joint(kai.body, 0.26, 0.63, 0.21);
   part(pocket, seam, [0.210, 0.220, 0.112], [0, 0, 0.012]);
   part(pocket, graphite, [0.213, 0.061, 0.136], [0, 0.057, 0.012]);
   part(pocket, amber, [0.049, 0.112, 0.023], [-0.076, -0.005, 0.087]);
@@ -332,7 +332,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   tag.rotation.set(0.14, 0, Math.PI);
   const restored = cast.flatMap(person =>
     [person.g, person.body, person.head, person.head.children[1], person.phone, person.phoneCase, person.ring, ...person.arms, ...person.legs].map(transformSnapshot));
-  const normalScreen = sean.phone.material.map;
+  const normalScreen = kai.phone.material.map;
   const medicalDevice = joint(props, -22.87, 1.49, -0.52);
   medicalDevice.name = 'film-medical-phone';
   medicalDevice.rotation.y = Math.PI - 0.65;
@@ -340,7 +340,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   const deviceScreen = plate(medicalDevice, 0.403 * 390 / 700, 0.403, null, [0, 0, 0.020]);
   deviceScreen.name = 'film-medical-phone-screen';
   deviceScreen.material.color.set('#071114');
-  const chest = timmy.body.children[0];
+  const chest = mira.body.children[0];
   const chestScale = chest.scale.clone();
   let normalPhoneTexture = null, alertPhoneTexture = null, phoneTime = 0;
   function updatePhoneTexture() {
@@ -354,7 +354,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   part(supportBag, ivory, [0.30, 0.25, 0.16], [0, 0, 0]);
   part(supportBag, amber, [0.22, 0.035, 0.018], [0, 0.03, 0.087]);
   const workBoard = joint(props);
-  workBoard.name = 'sean-engineering-clipboard';
+  workBoard.name = 'kai-engineering-clipboard';
   part(workBoard, seam, [0.48, 0.32, 0.025], [0, 0, 0]);
   const checklist = faceTexture(576, 360, ctx => {
     ctx.fillStyle = '#e6ddc7'; ctx.fillRect(0, 0, 576, 360);
@@ -371,7 +371,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   });
   plate(workBoard, 0.44, 0.275, checklist, [0, -0.008, 0.014]);
   part(workBoard, titanium, [0.14, 0.040, 0.025], [0, 0.144, 0.021]);
-  const workClip = part(sean.body, graphite, [0.10, 0.09, 0.14], [-0.36, 0.84, -0.03]);
+  const workClip = part(kai.body, graphite, [0.10, 0.09, 0.14], [-0.36, 0.84, -0.03]);
   const trainingPhone = joint(props);
   trainingPhone.name = 'film-training-phone';
   part(trainingPhone, graphite, [.253, .43, .036], [0, 0, 0]);
@@ -401,7 +401,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
   function setVisible(visible) {
     if (!visible) {
       restored.forEach(restore => restore());
-      sean.phone.material.map = normalScreen;
+      kai.phone.material.map = normalScreen;
       chest.scale.copy(chestScale);
     }
     for (const person of cast) {
@@ -419,7 +419,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     props.visible = pocket.visible = workClip.visible = visible;
   }
 
-  function update(time) {
+  function update(time, context = null) {
     const storyTime = filmStoryTime(time);
     taskTime = storyTime;
     updateTaskTexture();
@@ -435,16 +435,16 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     chest.scale.copy(chestScale);
     chest.scale.z *= 1 + breathing * 0.045 * (1 - Math.cos((time - 26.4) * Math.PI * 2 / 2.8));
     band.rotation.y = mix(0.22, -0.58, fall);
-    const timmyPelvis = v(mix(-22.05, -21.72, fall), mix(0.78, 0.53 - 0.06 * sit, fall) - 0.16 * buckle, 0);
+    const miraPelvis = v(mix(-22.05, -21.72, fall), mix(0.78, 0.53 - 0.06 * sit, fall) - 0.16 * buckle, 0);
     const tilt = mix(-Math.PI / 2 * fall, -0.65, sit);
-    placePelvis(timmy, timmyPelvis, -Math.PI / 2, tilt, -0.055 * weakness * (1 - fall));
-    timmy.head.position.set(0, 1.48, -0.06 * fall * (1 - sit));
-    timmy.head.rotation.set(0.12 + 0.23 * weakness - 0.26 * fall - 0.04 * sit, -0.05 + 0.09 * sit, 0.10 * fall * (1 - sit));
-    legsAt(timmy,
+    placePelvis(mira, miraPelvis, -Math.PI / 2, tilt, -0.055 * weakness * (1 - fall));
+    mira.head.position.set(0, 1.48, -0.06 * fall * (1 - sit));
+    mira.head.rotation.set(0.12 + 0.23 * weakness - 0.26 * fall - 0.04 * sit, -0.05 + 0.09 * sit, 0.10 * fall * (1 - sit));
+    legsAt(mira,
       [mix(0.26 * fall - 0.90 * buckle, -0.90, sit), mix(0.18 * fall - 0.84 * buckle, -0.84, sit)],
       [mix(0.70 * fall + 1.45 * buckle, 1.05, sit), mix(0.78 * fall + 1.38 * buckle, 0.98, sit)],
       0.05 * fall);
-    timmy.detailLegs.forEach(leg => {
+    mira.detailLegs.forEach(leg => {
       leg.ankle.rotation.x = -tilt - leg.thigh.rotation.x - leg.knee.rotation.x;
     });
 
@@ -453,26 +453,26 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
       1.07 + Math.cos(leverAngle) * 0.34 + 0.075, 0.38);
     const railWrist = v(-22.43, 1.19, -0.35);
     const lyingWrist = v(-21.38, 0.59, -0.58).lerp(v(-21.45, 0.68, -0.49), sit);
-    handAt(timmy, -1, railWrist.clone().lerp(v(-22.26, 1.05, -0.40), weakness * 0.25)
+    handAt(mira, -1, railWrist.clone().lerp(v(-22.26, 1.05, -0.40), weakness * 0.25)
       .lerp(lyingWrist, fall), mix(0.94, 0.02, ease(time, 8.8, 9.25)) + 0.32 * sit, 0.06);
-    handAt(timmy, 1, leverWrist.lerp(v(-21.58, 0.35, 0.45), fall)
+    handAt(mira, 1, leverWrist.lerp(v(-21.58, 0.35, 0.45), fall)
       .lerp(v(-21.67, 0.38, 0.41), sit), mix(0.91, 0.04, ease(time, 8.8, 9.2)), -0.07);
 
-    // Sean reacts immediately at 10.2 s, then takes three measured steps and
-    // kneels beside the near wrist. His helmet stays behind Timmy's shoulder.
+    // Kai reacts immediately at 10.2 s, then takes three measured steps and
+    // kneels beside the near wrist. His helmet stays behind Mira's shoulder.
     const reaction = ease(time, 10.2, 10.65);
     const approach = ease(time, 10.35, 11.65);
     const kneel = ease(time, 11.5, 12);
     const phase = approach * Math.PI * 6;
     const stepping = Math.sin(approach * Math.PI) * (1 - kneel);
-    const seanPelvis = v(mix(-19.20, -21.85, approach) + 0.40 * attend,
+    const kaiPelvis = v(mix(-19.20, -21.85, approach) + 0.40 * attend,
       mix(0.78, 0.45, kneel) + Math.abs(Math.sin(phase)) * 0.026 * stepping,
       mix(-0.60, -0.88, approach) + 0.10 * attend);
     const approachYaw = mix(-Math.PI, -Math.PI / 2, reaction);
-    placePelvis(sean, seanPelvis, mix(approachYaw, 0.9, kneel), 0.30 * kneel + 0.25 * attend);
-    sean.head.position.set(0, 1.48, 0);
-    sean.head.rotation.set(0.08 + 0.22 * kneel + 0.15 * attend - 0.06 * sit, -0.24 * reaction, 0);
-    legsAt(sean,
+    placePelvis(kai, kaiPelvis, mix(approachYaw, 0.9, kneel), 0.30 * kneel + 0.25 * attend);
+    kai.head.position.set(0, 1.48, 0);
+    kai.head.rotation.set(0.08 + 0.22 * kneel + 0.15 * attend - 0.06 * sit, -0.24 * reaction, 0);
+    legsAt(kai,
       [0.44 * Math.sin(phase) * stepping - 0.75 * kneel, -0.44 * Math.sin(phase) * stepping - 0.89 * kneel],
       [-0.28 * Math.max(0, -Math.sin(phase)) * stepping + 1.95 * kneel,
         -0.28 * Math.max(0, Math.sin(phase)) * stepping + 2.10 * kneel], 0.075 * kneel);
@@ -480,15 +480,15 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     // The physical checklist travels from both gloves into the opposite belt
     // clip before rescue. It remains attached there for the rest of the take.
     const tuck = ease(time, 10.2, 10.55);
-    workBoard.position.copy(sean.body.localToWorld(v(0, 0.98, 0.35).lerp(v(-0.40, 0.70, -0.03), tuck)));
-    workBoard.quaternion.copy(sean.body.getWorldQuaternion(new THREE.Quaternion()))
+    workBoard.position.copy(kai.body.localToWorld(v(0, 0.98, 0.35).lerp(v(-0.40, 0.70, -0.03), tuck)));
+    workBoard.quaternion.copy(kai.body.getWorldQuaternion(new THREE.Quaternion()))
       .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12 * (1 - tuck), -Math.PI / 2 * tuck, 0)));
 
     const braceReach = ease(time, 11.45, 12);
     const pull = ease(time, 12, 12.55), fit = ease(time, 12.55, 13.35);
     const pouchPosition = pocket.getWorldPosition(new THREE.Vector3()).add(v(0, 0, 0.10));
     const fitting = band.getWorldPosition(new THREE.Vector3()).add(v(0, 0, -0.025));
-    const movingRight = sean.body.localToWorld(v(0.35, 0.87, 0.22));
+    const movingRight = kai.body.localToWorld(v(0.35, 0.87, 0.22));
     const serviceHand = movingRight.lerp(v(-21.10, 0.73, -0.40), braceReach)
       .lerp(pouchPosition.clone().add(v(0.035, 0.105, 0.015)), pull)
       .lerp(fitting.clone().add(v(0.07, 0.095, -0.005)), fit);
@@ -497,22 +497,22 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     const usingPhone = ease(time, 13.6, 14) * (1 - ease(time, 25.95, 26.35));
     medicalDevice.visible = true;
     medicalDevice.position.copy(v(-22.87, 1.49, -0.52).lerp(v(-20.95, 0.98, -0.78), usingPhone));
-    sean.phone.visible = sean.phoneCase.visible = false;
+    kai.phone.visible = kai.phoneCase.visible = false;
     serviceHand.lerp(v(-20.95, 0.78, -0.78), usingPhone);
     serviceHand.lerp(v(-21.27, 0.66, -0.40), sit);
     serviceHand.lerp(v(-21.32, 0.66, -0.56), attend);
     serviceHand.lerp(workBoard.localToWorld(v(0.24, 0.08, 0.02)), 1 - ease(time, 10.2, 10.36));
-    handAt(sean, 1, serviceHand, mix(0.30, 0.62, usingPhone), -0.14);
-    const brace = sean.body.localToWorld(v(-0.34, 0.90, 0.25));
+    handAt(kai, 1, serviceHand, mix(0.30, 0.62, usingPhone), -0.14);
+    const brace = kai.body.localToWorld(v(-0.34, 0.90, 0.25));
     brace.lerp(lyingWrist.clone().add(v(-0.14, -0.035, 0.12)), braceReach);
     brace.lerp(v(-21.14, 0.56, -0.35), attend);
     brace.lerp(workBoard.localToWorld(v(-0.24, 0.08, 0.02)), 1 - ease(time, 10.55, 10.7));
-    handAt(sean, -1, brace, 0.36 + 0.08 * sit, 0.10);
+    handAt(kai, -1, brace, 0.36 + 0.08 * sit, 0.10);
 
     old.module.visible = time < 13.35;
     old.display.material.map = liveSensor || ok;
     spare.module.position.copy(pouchPosition);
-    const carried = sean.detailArms[1].wrist.localToWorld(v(0.015, -0.09, 0.035));
+    const carried = kai.detailArms[1].wrist.localToWorld(v(0.015, -0.09, 0.035));
     spare.module.position.lerp(carried, ease(time, 12.30, 12.52));
     spare.module.position.lerp(fitting, ease(time, 13.10, 13.35));
     spare.module.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));
@@ -527,31 +527,41 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
       retired.module.position.set(-22.70, 1.123, 0);
       retired.module.rotation.set(-Math.PI / 2, 0, 0);
     }
-    const inspect = ease(storyTime, 24.65, 25.55);
+    // Finish lifting within the first part of this shot, leaving a full second
+    // to see the circuit in the device, also when the edit shortens this shot.
+    const inspect = context?.id === 'inspect'
+      ? ease(context.progress * context.seconds,0,Math.max(.05,context.seconds-1))
+      : ease(storyTime,24.45,25.02);
     retired.cover.position.set(-.10 * inspect, -.04 * inspect, .033 + .10 * inspect);
     retired.cover.rotation.set(0, -.18 * inspect, 0);
 
     // The rest of the crew remain at separate stations. Lin leaves the nearest
     // quarters only after the incident and walks the centre aisle to support.
     const assist = ease(time, 14.1, 21.8);
-    const linPosition = v(-13.65, 0.16, -4.90)
+    const revisedHelp = edition === 'revised' && storyTime < 24.4;
+    const linPosition = revisedHelp ? v(-13.65,.16,-4.90)
+      .lerp(v(-14,.16,-.72),ease(assist,0,.35))
+      .lerp(v(-21.40,.16,.75),ease(assist,.35,1)) : v(-13.65, 0.16, -4.90)
       .lerp(v(-14.00, 0.16, -0.72), ease(assist, 0, 0.35))
       .lerp(v(-19.65, 0.16, -1.25), ease(assist, 0.35, 1))
       .lerp(v(-19.65, .16, .82), ease(storyTime, 22.1, 22.75))
       .lerp(v(-22.70, .16, .65), ease(storyTime, 22.75, 24.2));
-    const atBench = ease(storyTime, 23.9, 24.4);
+    const atBench = revisedHelp ? 0 : ease(storyTime, 23.9, 24.4);
+    const helping = revisedHelp ? ease(time,21.8,24.5) : 0;
     const duties = [
-      [operator, linPosition, mix(mix(Math.PI, -1.1, ease(assist, 0, 0.3)), Math.PI, atBench)],
+      [operator, linPosition, revisedHelp ? mix(-1.1,Math.PI,helping) : mix(mix(Math.PI, -1.1, ease(assist, 0, 0.3)), Math.PI, atBench)],
       [technician, v(26.02, 0.16, 4.92), Math.PI / 2],
     ];
     for (const [person, position, angle] of duties) {
       placePerson(person, position.x, position.y, position.z, angle);
+      if (person === operator && revisedHelp) placePelvis(person,v(position.x,mix(.78,.48,helping),position.z),angle,.22*helping);
       person.head.position.set(0, 1.48, 0);
       person.head.rotation.set(0.18, 0.07 * Math.sin(time * 0.5), 0);
       if (person === operator) person.head.rotation.y -= .35 * (1 - ease(assist, 0, .2));
       if (person === technician) person.head.rotation.y = .45;
       const walk = person === operator ? Math.sin(assist * Math.PI) : 0;
       legsAt(person, [0.30 * Math.sin(assist * 22) * walk, -0.30 * Math.sin(assist * 22) * walk], [0, 0]);
+      if (person === operator && helping > 0) legsAt(person,[-.75*helping,-.89*helping],[1.95*helping,2.1*helping],.075*helping);
       for (const side of [-1, 1]) {
         const work = 0.035 * Math.sin(time * 1.5 + side);
         const hand = person.body.localToWorld(v(side * 0.31, 0.99 + work, 0.36));
@@ -563,6 +573,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
             ? retired.cover.localToWorld(v(-.13, 0, .015)).add(v(0, .13, 0))
             : v(-22.54, 1.235, .01);
           hand.lerp(inspectingHand, atBench);
+          if (revisedHelp) hand.lerp(side === -1 ? v(-21.46,.65,.33) : v(-21.05,.50,.70),helping);
         }
         handAt(person, side, hand, 0.48);
       }
@@ -599,7 +610,8 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     }
     supportBag.visible = time >= 19;
     supportBag.position.copy(operator.detailArms[1].wrist.localToWorld(v(0, -0.11, 0.03)));
-    supportBag.position.lerp(v(-19.6, .28, -.7), ease(storyTime, 22.1, 22.5));
+    if (revisedHelp) supportBag.position.lerp(v(-21.02,.28,.78),helping);
+    else supportBag.position.lerp(v(-19.6, .28, -.7), ease(storyTime, 22.1, 22.5));
   }
 
   function updateCabin() {
@@ -615,7 +627,7 @@ export function createFilmActors(ship, {scripted = true, names = ['LIN', 'SEAN',
     updateTaskTexture();
   }
   if (!scripted) {
-    sean.body.add(workBoard);
+    kai.body.add(workBoard);
     workBoard.position.set(-.43, .88, .20);
     workBoard.rotation.y = -.6;
     operator.body.add(supportBag);

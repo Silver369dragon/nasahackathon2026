@@ -26,6 +26,15 @@ OXIMETER = source("fda-oximeter", "FDA · Pulse Oximeter Basics", "accessed 2026
                   "https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics", "Using a pulse oximeter")
 RULE = source("training-hr-rule", "Orbital · TRAINING_HR_RECHECK", "training-rules-1 / rule 1",
               "/v1/knowledge/documents/training-recheck?version=1", "backend/alerts.py · DEFINITION")
+NEWS2 = source('rcp-news2', 'Royal College of Physicians · NEWS2', '2017',
+               'https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/', 'How NEWS works; NEWS2 Report')
+EWMA = source('nist-ewma', 'NIST/SEMATECH · EWMA Control Charts', 'accessed 2026-11-15',
+              'https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc324.htm', 'Definition and baseline assumptions')
+ENGINE = source('orbital-statistics', 'Orbital saved statistical evidence', 'fixed-baseline-v2',
+                '/v1/knowledge/documents/assessment-statistics?version=1',
+                'Implementation: backend/baselines.py; backend/health_reports.py; synthetic training only')
+for evidence_source in (NEWS2, EWMA, ENGINE):
+    evidence_source['checkedOn'] = '2026-11-15'
 
 
 def chunk(identifier: str, section: tuple[str, str], body: tuple[str, str], tags: str, *sources: Data) -> Data:
@@ -44,6 +53,34 @@ def document(identifier: str, title: tuple[str, str], kind: str, topic: str, env
 
 CREW = ("Crew in training", "受訓船員")
 DOCUMENTS = [
+    document('assessment-statistics', ('Reading a saved three-layer report', '閱讀已保存的三層報告'),
+             'education', 'assessment', 'training', CREW,
+             ('Understand the limits of saved training evidence.', '了解已保存訓練證據的限制。'), [
+        chunk('news2-scope', ('NEWS2 and completeness', 'NEWS2 與完整性'),
+              (('NEWS2 uses six physiological parameters and supplemental oxygen status. '
+               'In this training system, eight usable inputs mean completeness, not a score of eight. '
+               'The report displays the saved score and rule version; missing or unusable inputs are not zero. '
+               'This synthetic implementation has not been validated for mission medical decisions.'),
+               ('NEWS2 使用六項生理參數及補氧狀態。本訓練系統的八項可用輸入代表完整度，不代表八分。'
+               '報告呈現已保存分數及規則版本，缺漏或無法使用的輸入不視為零。此合成資料實作未經任務醫療決策驗證。')),
+              'NEWS2 assessment 評估 完整度 分數', NEWS2, ENGINE),
+        chunk('baseline-scope', ('Baseline and statistical deviation', '基準與統計偏離'),
+              (('The saved Z value expresses distance from a selected personal reference mean in sample standard deviations. '
+               'EWMA gives progressively less weight to older samples. Representative historical data and comparable '
+               'measurement conditions matter. These statistics are not validated clinical risk thresholds.'),
+               ('保存的 Z 值以樣本標準差表示量測與選定個人參考平均值的距離。EWMA 對較舊樣本逐步降低權重。'
+               '歷史資料是否具代表性、量測條件是否可比較都會影響解讀。這些統計並非經驗證的臨床風險門檻。')),
+              'baseline statistics EWMA Z 基準 統計 偏離', EWMA, ENGINE),
+        chunk('snapshot-limits', ('Exact evidence and snapshot limits', '精確證據與快照限制'),
+              (('A report pins the NEWS2 version, exact linked measurement IDs, saved analyses and baseline versions, '
+               'alert states, and local knowledge versions. Different times, sources, methods, activities and quality '
+               'must remain visible. A hand-entered NEWS2 value cannot borrow an unrelated measurement analysis. '
+               'Saving or reading a report does not recalculate scores or send a notification.'),
+               ('報告固定 NEWS2 版本、精確連結的量測 ID、已保存分析與基準版本、警示狀態及本機知識版本。'
+               '不同時間、來源、方法、活動與品質必須明示。手填 NEWS2 數值不能借用無關量測的分析。'
+               '保存或讀取報告不會重新計分或發出通知。')),
+              'NEWS2 baseline statistics snapshot 報告 基準 統計 限制', ENGINE),
+    ]),
     document("unresponsive", ("Unresponsive adult / suspected cardiac arrest", "成人無反應／疑似心搏停止"),
              "procedure", "first-aid", "microgravity", CREW,
              ("Practice recognizing an emergency. Use your mission’s medical procedures in flight.",

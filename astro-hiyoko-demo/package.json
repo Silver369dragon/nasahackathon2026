@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:demo": "node --test health-demo-clock.test.mjs health-demo-proxy.test.mjs health-demo-browser.test.mjs",
+    "test:film": "node --test film-audio.test.mjs film-versions.test.mjs",
     "start": "node server.mjs",
     "test:health": "playwright test --config=playwright.health.config.js",
-    "test": "node --test simulation.test.mjs routines.test.mjs scenarios.test.mjs social.test.mjs",
+    "test": "node --test film-audio.test.mjs film-versions.test.mjs health-demo-clock.test.mjs",
     "test:body": "playwright test --config=playwright.body.config.js"
   },
   "dependencies": {

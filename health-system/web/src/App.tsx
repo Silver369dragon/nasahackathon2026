@@ -53,6 +53,8 @@ import { MobileVitals } from './MobileVitals'
 import { CrewStatusBoard } from './CrewStatusBoard'
 import { ThemeButton, useCrewTheme } from './Theme'
 import { MobileBack, MobileHome, MobileMore, useMobile } from './MobileHome'
+import { DemoSummary } from './DemoSummary'
+import { HealthReportMonitor } from './HealthReport'
 import './style.css'
 
 const BodyMap = lazy(() => import('./BodyMap'))
@@ -283,6 +285,8 @@ function Console({
   const feed = useFeed(view, deny, onEmergency)
   const [logoutError, setLogoutError] = useState(false)
   const [chatAssessment, setChatAssessment] = useState<string | undefined>()
+  const [chatAnalysis, setChatAnalysis] = useState<string | undefined>()
+  const [chatReport, setChatReport] = useState<string | undefined>()
   const isBoard = view === 'system_display'
   const personal = view === 'personal'
   const connected = feed.status === 'connected'
@@ -353,7 +357,7 @@ function Console({
   const overview = path === paths.personal || path === paths.system || isBoard
   const withData = feed.rows.filter((r) => r.metricCards.some((c) => c.latest !== null)).length
   const go = (p: string) => {
-    if (p !== paths.chat) setChatAssessment(undefined)
+    if (p !== paths.chat) { setChatAssessment(undefined); setChatAnalysis(undefined); setChatReport(undefined) }
     navigate(p)
     window.scrollTo({ top: 0 })
   }
@@ -520,15 +524,19 @@ function Console({
             )}
             {isBoard && <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny} board/>}
           </div>}
+          {(path === paths.personal || (path === paths.system && session.roles.includes('monitor'))) &&
+            <DemoSummary session={session} lang={lang} deny={deny} crew={feed.rows} navigate={go}
+              askAnalysis={id => { setChatAnalysis(id); setChatAssessment(undefined); setChatReport(undefined); go(paths.chat) }}
+              askAssessment={id => { setChatAssessment(id); setChatAnalysis(undefined); setChatReport(undefined); go(paths.chat) }}/>}
           {visual && path === paths.personal && !mobileHome && crew && <>
             <SectionTitle text={t('Vital signs', '生命徵象')} />
             <MobileVitals crew={crew} lang={lang} revision={feed.historyRevision[crew.crewId]} deny={deny} openTraining={() => go(paths.tasks)} />
           </>}
           {path === paths.personal && !mobileHome && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
           {path === paths.system && session.roles.includes('monitor') && <DatasetImport session={session} lang={lang} deny={deny} />}
-          {((path === paths.personal && !mobileHome) || path === paths.system || detail) && <Radiation
+          {((path === paths.personal && !mobileHome) || path === paths.system || detail) && <div id="radiation-panel"><Radiation
             data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny}
-            crewId={personal || detail ? reference : null} board={isBoard}/>}
+            crewId={personal || detail ? reference : null} board={isBoard}/></div>}
           {path === paths.personal && help.status === 'sent' && <p className="help-sent" data-testid="help-sent" role="status">
             <CheckCircle2 size={17}/>{t('Help request sent to the crew.', '緊急求助通知已發出。')}</p>}
           {path === paths.personal && help.status === 'queued' && <p className="notice" role="status">
@@ -552,11 +560,14 @@ function Console({
           ) : path === paths.assessment ? (
             <News2 session={session} lang={lang} deny={deny} assessmentRevision={feed.assessmentRevision}
               revision={feed.historyRevision[session.username]} measure={() => go(paths.measure)}
-              ask={id => { setChatAssessment(id); go(paths.chat) }} stepped={simple}/>
+              ask={id => { setChatAssessment(id); setChatAnalysis(undefined); setChatReport(undefined); go(paths.chat) }}
+              askReport={id => {setChatReport(id);setChatAssessment(undefined);setChatAnalysis(undefined);go(paths.chat)}} stepped={simple}/>
           ) : path === paths.trends ? (
-            <Trends lang={lang} deny={deny} revision={feed.historyRevision[session.username]} simple={visual}/>
+            <Trends simple={visual} session={session} lang={lang} deny={deny} revision={feed.historyRevision[session.username]}
+              ask={id => { setChatAnalysis(id); setChatAssessment(undefined); setChatReport(undefined); go(paths.chat) }}/>
           ) : path === paths.tasks ? null : path === paths.chat ? (
-            <Chat session={session} lang={lang} deny={deny} assessmentId={chatAssessment} clearAssessment={() => setChatAssessment(undefined)}
+            <Chat session={session} lang={lang} deny={deny} assessmentId={chatAssessment} analysisId={chatAnalysis} reportId={chatReport}
+              clearAssessment={() => { setChatAssessment(undefined); setChatAnalysis(undefined); setChatReport(undefined) }}
               openAid={id => go(id === 'first-aid' ? paths.aid : paths.aid + '/' + id)} />
           ) : aidPage ? (
             <FirstAid key={path} lang={lang} initialId={path.split('/')[3]} onDenied={deny}
@@ -603,6 +614,7 @@ function Console({
                   <AssessmentStatus item={a} lang={lang}/></article>) : <p>{t('No assessments recorded.','尚無評估紀錄。')}</p>}
               </section>}
               <TeamTraining lang={lang} deny={deny} refreshToken={feed.trainingRevision}/>
+              {!isBoard && <HealthReportMonitor lang={lang} deny={deny}/>}
             </>
           ) : !crew ? (
             <div className="panel empty-state">{t('Data unavailable', '無可用資料')}</div>

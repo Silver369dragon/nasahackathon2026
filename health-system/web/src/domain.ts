@@ -18,6 +18,29 @@ export type WorkOfBreathing = {
   notes?: string | null
 }
 export type MeasurementContext = Record<string, string | number | boolean | null>
+export type PersonalBaseline = {
+  id: string; version: number; crewId: string; metricCode: string
+  from: string; to: string; count: number; mean: number; sd: number; sampleIds: string[]
+  source: string; method: string; origin: string; synthetic: boolean; unit: string
+  context: MeasurementContext; algorithmVersion: string; createdAt: string
+}
+export type PersonalAnalysis = {
+  id: string; crewId: string; metricCode: string; measurementId: string; observedAt: string
+  value: number | null; unit: string; status: string; reason: string | null
+  baselineId: string; baselineVersion: number; algorithmVersion: string
+  analysisRevision?: number; previousAnalysisId?: string; recalculationScope?: string; recalculationReason?: string
+  z: number | null; ewma: number | null; segmentId: string; createdAt: string
+  baseline?: PersonalBaseline
+}
+export function analysisStatusText(status: string, lang: Lang) {
+  const messages: Record<string, [string, string]> = {
+    ready: ['Saved analysis', '已保存分析'],
+    unusable_quality: ['Missing or unusable reading; the trend segment is interrupted.', '量測缺值或品質不足，趨勢段已中斷。'],
+    out_of_order: ['Late reading; existing EWMA results are preserved.', '較晚送達的歷史量測；既有 EWMA 結果保留。'],
+    duplicate_bucket: ['This second already has a representative reading.', '同一秒已有代表量測。'],
+  }
+  return messages[status]?.[lang === 'en' ? 0 : 1] ?? status
+}
 export type Measurement = {
   id: string
   metricCode: string

@@ -9,7 +9,7 @@ import {createFilmOutput, renderFilmAudio} from './film-output.js';
 import {renderFilm} from './film-render.js';
 import {loadFilmMedia} from './film-media.js';
 import {loadFilmedMedia} from './film-footage.js';
-import {defaultShots, formatVersion, insertIds, interpolate, locate, maxSeconds, minSeconds, names, readShots, shotStart, storyAt, totalTime} from './film-timeline.mjs';
+import {defaultShots, insertIds, interpolate, loadEdition, locate, maxSeconds, minSeconds, namesForEdition, originalBackup, readShots, saveEdition, serializeShots, shotStart, soundAt, storyAt, totalTime} from './film-timeline.mjs';
 
 const $ = id => document.getElementById(id);
 const input = id => /** @type {HTMLInputElement} */ ($(id));
@@ -17,23 +17,38 @@ const button = id => /** @type {HTMLButtonElement} */ ($(id));
 const select = /** @type {HTMLSelectElement} */ ($('shots'));
 const link = /** @type {HTMLAnchorElement} */ ($('download'));
 const frame = $('frame');
-const storageKey = 'hiyoko.film.shots.v8';
+const edition = new URLSearchParams(location.search).get('edition') === 'revised' ? 'revised' : 'original';
+const editionSelect = /** @type {HTMLSelectElement} */ ($('film-edition'));
+editionSelect.value = edition;
+const editionLabel = edition === 'revised' ? '新版 · 順敘救援' : '原版 · 日常開場';
+$('edition-note').textContent = edition === 'revised'
+  ? '日常 → 異常讀值 → 失聯停更 → 備援接手 → 團隊救援。這一版依時間順序敘事，鏡位與秒數獨立儲存。'
+  : '沿用你原有的鏡位與秒數。切換新版不會覆蓋這一版；首次切換前的設定另有原版備份。';
+document.title = 'Astro Hiyoko · ' + editionLabel;
 const footage = new URLSearchParams(location.search).get('source') !== 'live';
 const filmedNames = {
   'training-task':'Noa 第一人稱開啟遊戲化運動任務', body:'Lin 操作人體 3D 並查看資料',
-  'phone-link':'Timmy 控制台手機', monitor:'手機實錄：健康趨勢', 'record-detail':'手機實錄：測量細節與品質',
+  'phone-link':'Mira 控制台手機', monitor:'手機實錄：健康趨勢', 'record-detail':'手機實錄：測量細節與品質',
   team:'手機實錄：五人健康總覽', app:'手機實錄：異常數值與警示', question:'手機實錄：詢問緊急異常',
   guide:'手機實錄：AI 理解並解釋警示', evidence:'手機實錄：核對引用來源',
   'aid-route':'手機實錄：導向急救流程', 'aid-steps':'手機實錄：立即處理步驟',
 };
-const shotNames = defaultShots().map((shot,i) => footage ? filmedNames[shot.id] || names[i] : names[i]);
+const names = namesForEdition(edition);
+const shotNames = defaultShots(edition).map((shot,i) => footage && edition === 'original' ? filmedNames[shot.id] || names[i] : names[i]);
 const mediaSource = /** @type {HTMLSelectElement} */ ($('media-source'));
 mediaSource.value = footage ? 'footage' : 'live';
 $('live-health').hidden = footage;
 $('footage-note').hidden = !footage;
 mediaSource.onchange = () => {
+  if (pendingSave && !save()) { mediaSource.value = footage ? 'footage' : 'live'; return; }
   const url = new URL(location.href);
   url.searchParams.set('source',mediaSource.value);
+  location.assign(url.href);
+};
+editionSelect.onchange = () => {
+  if (pendingSave && !save()) { editionSelect.value = edition; return; }
+  const url = new URL(location.href);
+  url.searchParams.set('edition',editionSelect.value);
   location.assign(url.href);
 };
 const status = message => { $('status').textContent = message; };
@@ -43,14 +58,17 @@ function clock(seconds) {
   return number(Math.floor(cs / 6000)) + ':' + number(Math.floor(cs / 100) % 60) + '.' + number(cs % 100);
 }
 
-let shots = defaultShots();
+let shots = defaultShots(edition);
+let pendingSave = false;
 try {
-  const stored = localStorage.getItem(storageKey);
-  if (stored) shots = readShots(stored);
-} catch { status('無法讀取先前分鏡，已載入原始腳本。'); }
+  const loaded = loadEdition(localStorage,edition);
+  shots = loaded.shots;
+  if (loaded.error) $('edition-note').textContent += ' 無法讀取儲存資料：暫用預設分鏡，原資料未覆蓋。請先下載備份。';
+  else if (loaded.backupError) $('edition-note').textContent += ' 已讀取原有分鏡，但瀏覽器空間不足，無法建立額外備份。';
+} catch { $('edition-note').textContent += ' 瀏覽器儲存空間不可用，請匯出分鏡檔保留調整。'; }
 function save() {
-  try { localStorage.setItem(storageKey, JSON.stringify({version:formatVersion, shots})); }
-  catch { status('瀏覽器無法自動儲存，請使用「匯出分鏡檔」保留調整。'); }
+  try { saveEdition(localStorage,edition,shots); pendingSave = false; return true; }
+  catch { pendingSave = true; status('瀏覽器無法自動儲存，請使用「匯出分鏡檔」保留調整。'); return false; }
 }
 
 const scene = new THREE.Scene();
@@ -67,18 +85,18 @@ scene.add(key);
 const fill = new THREE.DirectionalLight(0xb2dee7,1.12);
 fill.position.set(-8,5,-8);
 scene.add(fill);
-const ship = buildShip(crew.map((person,i) => ({...person,name: ['Lin','Sean','Timmy','Noa','Sol'][i]})));
+const ship = buildShip(crew.map((person,i) => ({...person,name: ['Lin','Kai','Mira','Noa','Sol'][i]})));
 scene.add(ship.root);
 ship.labels.forEach(label => { label.visible = false; });
 const orbit = createOrbit(scene);
 const stage = addFilmSet(scene,ship);
-const actors = createFilmActors(ship);
+const actors = createFilmActors(ship,{edition});
 stage.setVisible(true);
 actors.setVisible(true);
 const media = {ready:false, update:null};
 const film = createFilmOutput(renderer.domElement,error => {
   cancel('錄製中斷：' + error.message);
-},media);
+},media,edition);
 frame.append(renderer.domElement,film.canvas);
 const controls = new OrbitControls(camera,frame);
 controls.enableDamping = false;
@@ -107,14 +125,15 @@ let lastDownload = '';
 let recording = null;
 function render() {
   if (rendererLost) return;
-  const story = storyAt(selected,progress);
-  media.update?.(story);
-  actors.update(story);
+  const story = storyAt(selected,progress,edition);
+  const context = {id:shots[selected].id,progress,time:soundAt(selected,progress,edition),seconds:shots[selected].seconds};
+  media.update?.(story,edition === 'revised' ? context : undefined);
+  actors.update(story,context);
   stage.update(story);
   orbit.update(story);
   renderer.render(scene,camera);
   const composite = mode !== 'edit' || input('composite').checked;
-  if (composite) film.draw(story);
+  if (composite) film.draw(story,context);
   film.canvas.hidden = !composite;
   renderer.domElement.hidden = composite;
 }
@@ -174,9 +193,10 @@ function syncShot() {
 function locks() {
   const busy = mode !== 'edit';
   mediaSource.disabled = busy;
+  editionSelect.disabled = busy;
   select.disabled = busy;
   /** @type {HTMLFieldSetElement} */ ($('settings')).disabled = busy;
-  for (const b of [...stripButtons,button('export'),button('import')]) b.disabled = busy;
+  for (const b of [...stripButtons,button('export'),button('import'),button('backup')]) b.disabled = busy;
   input('scrub').disabled = busy;
   input('composite').disabled = busy;
   button('preview').disabled = !media.ready || rendererLost || mode === 'record' || mode === 'encoding';
@@ -233,7 +253,7 @@ input('fov').oninput = () => {
 input('scrub').oninput = () => seek(input('scrub').valueAsNumber);
 input('composite').onchange = render;
 button('restore').onclick = () => {
-  shots[selected] = defaultShots()[selected];
+  shots[selected] = defaultShots(edition)[selected];
   timeline(); choose(selected,endpoint || 'start'); save();
 };
 
@@ -262,7 +282,7 @@ async function record() {
   mode = 'record'; locks();
   status('正在準備影片音效…');
   try {
-    const audio = await renderFilmAudio(shots,media);
+    const audio = await renderFilmAudio(shots,media,edition);
     job.signal.throwIfAborted();
     const blob = await renderFilm({canvas:film.canvas, shots, audio, renderAt:seek, signal:job.signal, realtime:!footage,
       onProgress:value => {
@@ -273,7 +293,7 @@ async function record() {
     lastDownload = URL.createObjectURL(blob);
     link.href = lastDownload;
     const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
-    link.download = 'Astro-Hiyoko-' + new Date().toISOString().replace(/[:.]/g,'-') + '.' + extension;
+    link.download = 'Astro-Hiyoko-' + edition + '-' + new Date().toISOString().replace(/[:.]/g,'-') + '.' + extension;
     link.textContent = '下載影片（' + extension.toUpperCase() + '，' + (blob.size/1048576).toFixed(1) + ' MB）';
     link.hidden = false;
     if (previous) URL.revokeObjectURL(previous);
@@ -296,7 +316,7 @@ function play(next, oneShot = false) {
   seek(first);
   try {
     film.startPreviewAudio();
-    film.draw(storyAt(selected,progress));
+    render();
   } catch (error) {
     film.stopPreviewAudio(); finishEditing(); status(error.message); return;
   }
@@ -327,12 +347,16 @@ document.addEventListener('visibilitychange',() => {
 window.addEventListener('pagehide',() => {
   if (mode === 'record' || mode === 'preview') cancel('播放已停止。');
 });
-button('export').onclick = () => {
-  const json = JSON.stringify({version:formatVersion,shots},null,2);
+function downloadShots(json, name) {
   const url = URL.createObjectURL(new Blob([json],{type:'application/json'}));
   const a = document.createElement('a');
-  a.href = url; a.download = 'Astro-Hiyoko-shots.json'; a.click();
+  a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+button('export').onclick = () => downloadShots(serializeShots(shots,edition),'Astro-Hiyoko-' + edition + '-shots.json');
+button('backup').onclick = () => {
+  try { downloadShots(originalBackup(localStorage),'Astro-Hiyoko-original-backup.json'); }
+  catch { status('無法讀取原版備份，請檢查瀏覽器儲存權限。'); }
 };
 button('import').onclick = () => input('file').click();
 input('file').onchange = async () => {
@@ -340,7 +364,7 @@ input('file').onchange = async () => {
   if (!file) return;
   try {
     if (file.size > 256000) throw new Error('分鏡檔超過大小限制。');
-    const imported = readShots(await file.text());
+    const imported = readShots(await file.text(),edition);
     if (mode !== 'edit') return;
     shots = imported;
     timeline(); choose(0,'start'); save();
@@ -384,11 +408,12 @@ const loadingMedia = footage ? loadFilmedMedia() : loadFilmMedia(({state, mira, 
 });
 loadingMedia.then(loaded => {
   Object.assign(media,loaded);
-  stage.setMedicalTextures(loaded.textures);
-  actors.setMedicalTextures(loaded.textures);
+  const {board,boardNormal,bodyMap,phone,phoneNormal,taskPhone,taskPhoneReady,sensor} = loaded.textures;
+  stage.setMedicalTextures({board,boardNormal,bodyMap});
+  actors.setMedicalTextures({phone,phoneNormal,taskPhone,taskPhoneReady,sensor});
   input('composite').checked = true;
   locks(); render();
-  status(footage ? '正式影片已就緒：真實 App 操作包含人體 3D、AI 問答、引用來源與急救指引。可預覽或錄製。' : '即時展示使用目前醫療讀值。鏡位停止時數據仍會更新；錄影按實際時間取樣。');
+  status(editionLabel + '已就緒。' + (footage ? '可預覽、調整鏡位或錄製影片。' : '即時展示使用目前醫療讀值；劇情提示不代表即時醫療事件。'));
 }).catch(error => {
   locks();
   status(error.message + ' 請重新整理以重試。');

@@ -1,13 +1,14 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api, restricted } from './api'
-import { displayUnit, prettyValue, stamp, tx, workOfBreathingFields, type Lang, type Measurement } from './domain'
+import { analysisStatusText, displayUnit, prettyValue, stamp, tx, workOfBreathingFields, type Lang, type Measurement, type PersonalAnalysis } from './domain'
 import { contextLabels, label } from './labels'
 import type { Assessment } from './news2'
 import { AssessmentEvidence } from './AssessmentForm'
+import { HealthReportView, type HealthReport } from './HealthReport'
 import './chat-source.css'
 
 export type ChatCitation = {
-  kind: 'measurement' | 'task' | 'alert' | 'knowledge' | 'assessment'
+  kind: 'measurement' | 'task' | 'alert' | 'knowledge' | 'assessment' | 'analysis' | 'report'
   id: string; title: string; version?: number; chunkId?: string
 }
 type Common = { citation: ChatCitation; lang: Lang; deny: () => void }
@@ -29,8 +30,12 @@ type AlertRecord = {
 }
 type RecordResult = { kind: 'measurement'; record: Measurement } | { kind: 'task'; record: TaskRecord }
   | { kind: 'alert'; record: AlertRecord } | { kind: 'knowledge'; record: KnowledgeRecord } | { kind:'assessment'; record: Assessment }
+  | { kind: 'analysis'; record: PersonalAnalysis } | {kind:'report';record:HealthReport}
 
 const names: Record<string, [string, string]> = {
+  report: ['Three-layer report','三層評估報告'],
+  respiratory_rate: ['Respiratory rate','呼吸頻率'],
+  analysis: ['Saved analysis', '已保存分析'],
   assessment: ['NEWS2 assessment','NEWS2 健康評估'],
   measurement: ['Measurement', '量測紀錄'], knowledge: ['Local document', '本機文件'],
   task: ['Training task', '訓練任務'], alert: ['Training alert', '訓練警示'],
@@ -53,16 +58,42 @@ async function readRecord(c: Pick<ChatCitation, 'kind' | 'id' | 'version'>, sign
     return { kind: c.kind, record: await api<KnowledgeRecord>('/knowledge/documents/' + id + version, options) }
   }
   const path = '/assistant/records/' + c.kind + '/' + id
+  if (c.kind === 'report') return {kind:c.kind,record:await api<HealthReport>(path,options)}
+  if (c.kind === 'analysis') return { kind: c.kind, record: await api<PersonalAnalysis>(path, options) }
   if (c.kind === 'assessment') return { kind: c.kind, record: await api<Assessment>(path + '?version=' + c.version, options) }
   if (c.kind === 'measurement') return { kind: c.kind, record: await api<Measurement>(path, options) }
   if (c.kind === 'task') return { kind: c.kind, record: await api<TaskRecord>(path, options) }
   return { kind: c.kind, record: await api<AlertRecord>(path, options) }
 }
 
-function fields(result: Exclude<RecordResult, {kind: 'knowledge' | 'assessment'}>, lang: Lang): [string, string | undefined][] {
+function fields(result: Exclude<RecordResult, {kind: 'knowledge' | 'assessment' | 'report'}>, lang: Lang): [string, string | undefined][] {
   const t = (en: string, zh: string) => tx(lang, en, zh)
   const translated = (s?: string) => s ? readable(s, lang) : undefined
   const time = (s?: string) => s ? stamp(s, lang) : undefined
+  if (result.kind === 'analysis') {
+    const a = result.record
+    const b = a.baseline
+    const numeric = (v: number | null) => v === null ? '—' : v.toLocaleString(lang, { maximumFractionDigits: 4 })
+    return [
+      [t('Metric','指標'),readable(a.metricCode ?? 'heart_rate',lang)],
+      [t('Analysis ID', '分析編號'), a.id],
+      [t('Analysis revision','分析修訂'), String(a.analysisRevision ?? 1)],
+      [t('Previous analysis ID','前次分析編號'), a.previousAnalysisId],
+      [t('Recalculation scope','重算範圍'), a.recalculationScope === 'single_measurement' ? t('Single observation; separate EWMA segment','單筆觀察；獨立 EWMA 段') : undefined],
+      [t('Recalculation reason','重算原因'), a.recalculationReason],
+      [t('Observed', '量測時間'), time(a.observedAt)],
+      [t('Reading', '量測值'), numeric(a.value) + ' ' + displayUnit(a.unit, a.metricCode)],
+      [t('Status', '狀態'), analysisStatusText(a.status, lang)],
+      ['Z-score', numeric(a.z)], ['EWMA', numeric(a.ewma)],
+      [t('Baseline', '固定基準'), a.baselineId + ' · v' + a.baselineVersion],
+      [t('Reference period', '基準期間'), b ? stamp(b.from, lang) + ' – ' + stamp(b.to, lang) : undefined],
+      [t('Samples / mean / SD', '樣本數／平均／標準差'), b ? `${b.count} / ${numeric(b.mean)} / ${numeric(b.sd)}` : undefined],
+      [t('Source / method', '來源／方法'), b ? `${translated(b.source)} · ${translated(b.method)}` : undefined],
+      [t('Context', '量測情境'), b ? contextLabels(b.context, lang).join(' · ') : undefined],
+      [t('Algorithm', '算法版本'), a.algorithmVersion],
+      [t('Calculated', '計算時間'), time(a.createdAt)],
+    ]
+  }
   if (result.kind === 'measurement') {
     const m = result.record
     const context = contextLabels(m.context, lang)
@@ -131,9 +162,11 @@ function SourceDetail({ citation, lang, deny }: Common) {
     <button type="button" onClick={() => { setFailed(false); setAttempt(n => n + 1) }}>{tx(lang, 'Retry', '重試')}</button></p>
   if (!data) return <p role="status">{tx(lang, 'Loading record…', '讀取紀錄中…')}</p>
   if (data.kind === 'assessment') return <AssessmentEvidence record={data.record} lang={lang}/>
+  if (data.kind === 'report') return <HealthReportView report={data.record} lang={lang}/>
   if (data.kind === 'knowledge') return <KnowledgeExcerpt record={data.record} citation={citation} lang={lang}/>
   const ids = data.kind === 'task' ? data.record.evidence?.measurementIds
-    : data.kind === 'alert' ? data.record.initialEvidenceMeasurementIds : []
+    : data.kind === 'alert' ? data.record.initialEvidenceMeasurementIds
+    : data.kind === 'analysis' ? [data.record.measurementId] : []
   return <><dl>{fields(data, lang).map(([name, value]) => value && <Fragment key={name}><dt>{name}</dt><dd>{value}</dd></Fragment>)}</dl>
     {ids?.map((mid, i) => <ChatSource key={mid} lang={lang} deny={deny} citation={{ kind: 'measurement',
       id: mid, title: tx(lang, 'Linked measurement ', '關聯量測 ') + (i + 1) }}/>)}</>

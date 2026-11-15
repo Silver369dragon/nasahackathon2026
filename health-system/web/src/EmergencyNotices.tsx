@@ -149,7 +149,7 @@ export function EmergencyAlert({ items, lang, username, crewId, crew, openAid }:
       <section className="emergency-popup" role="alertdialog" aria-modal="true"
         aria-labelledby="emergency-popup-title" aria-describedby="emergency-popup-detail" data-testid="emergency-popup">
         <header><Siren size={30} aria-hidden="true"/><h2 id="emergency-popup-title">{t('Emergency', '緊急通知')}</h2></header>
-        <div id="emergency-popup-detail" className="emergency-popup-body">
+        <div id="emergency-popup-detail" className="emergency-popup-body" data-testid={'emergency-' + newest.id}>
           <strong>{name}</strong>
           <span>{sourceLabel(newest, lang)}</span>
           <time dateTime={newest.createdAt}>{stamp(newest.createdAt, lang)}</time>

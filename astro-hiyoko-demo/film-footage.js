@@ -56,7 +56,7 @@ export async function loadFilmedMedia(url = '/film-assets/manifest.json') {
   const audio = new Map(), decoder = new OfflineAudioContext(1, 1, 48000);
   await Promise.all([
     ...[...sources].map(async src => images.set(src, await loadImage(src))),
-    ...['timmy', 'beside'].map(async key => {
+    ...['mira', 'beside'].map(async key => {
       const src = `/film-assets/audio/${key}.wav`;
       const sound = await fetch(src);
       if (!sound.ok) throw new Error(`示範配音載入失敗：${src}`);
@@ -98,13 +98,15 @@ export async function loadFilmedMedia(url = '/film-assets/manifest.json') {
   let bodyFrame, sensorState;
   return {
     ready:true, live:false, manifest, images, audio, textures, frameAt,
-    update(storyTime) {
+    update(storyTime, context = null) {
       // Show connection state for the scripted prop, without inventing a
       // current vital reading. Actual measurements stay in the recorded App.
-      const state = storyTime < 8.8 ? 'LINKED' : storyTime < 13.35 ? 'OFFLINE' : 'LINKED';
+      let state = storyTime < 8.8 ? 'LINKED' : storyTime < 13.35 ? 'OFFLINE' : 'LINKED';
+      if (context?.id === 'wrist-warning') state = 'ALERT';
+      if (context?.id === 'reconnect') state = context.progress < .3 ? 'LINKING' : 'LINKED';
       if (state !== sensorState) {
         sensorContext.fillStyle = '#071b24'; sensorContext.fillRect(0,0,320,192);
-        sensorContext.fillStyle = state === 'OFFLINE' ? '#ffc87b' : '#a7e6db';
+        sensorContext.fillStyle = state === 'LINKED' ? '#a7e6db' : '#ffc87b';
         sensorContext.font = '24px sans-serif'; sensorContext.fillText('DEVICE',22,38);
         sensorContext.font = 'bold 54px sans-serif'; sensorContext.fillText(state,22,119,276);
         sensorContext.fillRect(22,152,276,3);

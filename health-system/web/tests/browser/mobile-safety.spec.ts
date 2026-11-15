@@ -22,6 +22,43 @@ async function quietFeed(page: Page, emergencies: object[] = []) {
 const popup = (page: Page) => page.getByRole('alertdialog')
 const number = (page: Page, name: string) => page.getByRole('spinbutton', { name, exact: true })
 
+test('assessment summary opens the dedicated radiation page', async ({ page }) => {
+  await login(page)
+  await quietFeed(page)
+  await page.goto('/app/overview')
+  await page.getByTestId('summary-radiation').getByRole('button', { name: '查看輻射詳情', exact: true }).click()
+  await expect(page).toHaveURL(/\/app\/radiation$/)
+  await expect(page.getByTestId('radiation-rate')).toBeVisible()
+})
+
+test('phone retains saved three-layer reports and the baseline review workflow', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) > 650, 'Phone-specific controls')
+  const csrf = await login(page, 'sol')
+  await quietFeed(page)
+  const measurement = await page.request.post('/v1/manual-measurements', { headers: { 'X-CSRF-Token': csrf }, data: {
+    schemaVersion: '1.3', commandId: crypto.randomUUID(), crewId: 'sol', isSynthetic: true,
+    observedAt: new Date(Date.now() - 60000).toISOString(), method: 'mobile_integration', context: { activity: 'rest' },
+    metrics: [{ code: 'heart_rate', value: 74, unit: '/min', quality: 'good' }],
+  } })
+  expect(measurement.status()).toBe(201)
+  await page.goto('/app/news2')
+  await page.getByRole('button', { name: '保存三層評估', exact: true }).click()
+  const report = page.getByTestId('health-report')
+  await expect(report).toBeVisible()
+  const id = await report.getAttribute('data-id')
+  expect((await page.request.get('/v1/health-reports/' + id)).status()).toBe(200)
+  await page.reload()
+  await expect(page.getByTestId('health-report')).toHaveAttribute('data-id', id!)
+  await page.goto('/app/trends')
+  await page.getByRole('button', { name: '個人基準與詳細分析', exact: true }).click()
+  const controls = page.locator('.baseline-controls').first()
+  await controls.locator(':scope > summary').click()
+  await expect(controls.getByRole('button', { name: '建立基準候選', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '返回趨勢摘要', exact: true }).click()
+  await expect(page.getByRole('tablist', { name: '指標', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
 test.describe('phone safety', () => {
   test.beforeEach(async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) > 650, 'Phone-specific controls')

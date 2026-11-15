@@ -96,7 +96,8 @@ http.createServer(async (req, res) => {
   try {
     if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(req.headers.host)) return res.writeHead(403).end();
     const url = new URL(req.url, 'http://localhost');
-    if (url.pathname === '/api/playback' || url.pathname.startsWith('/api/playback/')) {
+    if (['/v1/session', '/v1/demo/playback', '/v1/demo/playback/start', '/v1/demo/playback/stop'].includes(url.pathname) ||
+        url.pathname === '/api/playback' || url.pathname.startsWith('/api/playback/')) {
       await playbackRequest(req, res, url.pathname, upstream);
       return;
     }

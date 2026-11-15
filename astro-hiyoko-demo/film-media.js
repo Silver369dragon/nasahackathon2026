@@ -172,7 +172,7 @@ export async function loadFilmMedia(onChange = _update => {}, {wall = null, onRe
   if (!audio) return media;
   // Missing dialogue must not hide current readings.
   const decoder = new OfflineAudioContext(1, 1, 48000);
-  await Promise.all(['timmy','beside'].map(async key => {
+  await Promise.all(['mira','beside'].map(async key => {
     try {
       const response = await fetch(`/film-assets/audio/${key}.wav`, {signal:AbortSignal.timeout(5000)});
       if (response.ok) media.audio.set(key, await decoder.decodeAudioData(await response.arrayBuffer()));

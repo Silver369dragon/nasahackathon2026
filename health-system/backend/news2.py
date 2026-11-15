@@ -1,5 +1,6 @@
-"""Versioned completeness records for explicitly grouped synthetic NEWS2 observations."""
+"""Versioned scoring records for explicitly grouped synthetic NEWS2 observations."""
 import json
+import math
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -17,6 +18,7 @@ from pydantic import (
 )
 
 from .models import Contract, Identifier, canonical_measurement, utc_text
+from .news2_scoring import configuration, score_inputs
 from .store import Data, Problem, append_event, connection, digest, encoded, now_text
 
 SCHEMA = """
@@ -26,7 +28,7 @@ CREATE TABLE IF NOT EXISTS news2_versions(
     PRIMARY KEY(crew,id,version), UNIQUE(crew,command));
 CREATE INDEX IF NOT EXISTS news2_history ON news2_versions(crew,observed DESC,id,version DESC);
 """
-VITALS = Literal["heart_rate", "spo2", "blood_pressure_systolic", "temperature"]
+VITALS = Literal["heart_rate", "spo2", "blood_pressure_systolic", "temperature", "respiratory_rate"]
 LABELS = {
     "respiratory_rate": ("respiratory rate", "呼吸頻率"), "spo2": ("oxygen saturation", "血氧飽和度"),
     "spo2_scale": ("prescribed SpO₂ scale", "適用血氧尺度"),
@@ -46,7 +48,7 @@ LINK_WINDOW = timedelta(minutes=5)
 
 class Inputs(Contract):
     respiratory_rate: Annotated[StrictFloat, Field(ge=0)] | None = None
-    observationSeconds: Annotated[StrictInt, Field(gt=0)] | None = None
+    observationSeconds: Annotated[StrictFloat, Field(gt=0)] | None = None
     spo2: Annotated[StrictFloat, Field(ge=0, le=100)] | None = None
     blood_pressure_systolic: Annotated[StrictFloat, Field(ge=0)] | None = None
     heart_rate: Annotated[StrictFloat, Field(ge=0)] | None = None
@@ -99,6 +101,11 @@ def summary(item: Data) -> Data:
     public["vitalReadings"] = {k: item["effectiveInputs"][k] for k in
                                ("respiratory_rate", "spo2", "blood_pressure_systolic", "heart_rate", "temperature")
                                if item["effectiveInputs"][k] is not None and k not in item["invalidInputs"]}
+    # Historical documents remain historical: never infer a score while reading.
+    public.update({k: item[k] for k in ("requestedProfile", "ruleSetVersion", "normalizationVersion",
+                                      "configurationIssues", "componentScores", "scoringInputs",
+                                      "singleHighParameters", "riskBand", "interpretationVersion",
+                                      "scoringSource", "interpretationSource") if k in item})
     return public
 
 
@@ -125,6 +132,12 @@ def assess(db: sqlite3.Connection, crew: str, body: SaveAssessment) -> Data:
         effective[field] = m["value"]
         evidence[field] = {k: m[k] for k in ("id", "value", "unit", "observedAt", "method", "quality")}
         evidence[field]["source"] = m["provenance"]["source"]
+        if field == "respiratory_rate":
+            duration = m["context"].get("observationDuration")
+            usable = (not isinstance(duration, bool) and isinstance(duration, (int, float))
+                      and math.isfinite(duration) and duration > 0)
+            effective["observationSeconds"] = duration if usable else None
+            evidence[field]["observationSeconds"] = effective["observationSeconds"]
         if field == "temperature":
             effective["temperatureSite"] = m["context"].get("measurementSite")
             effective["temperatureMethod"] = m["method"]
@@ -148,15 +161,16 @@ def assess(db: sqlite3.Connection, crew: str, body: SaveAssessment) -> Data:
     if effective["spo2_scale"] == "scale2" and effective["scale2Documented"] is not True:
         details.append("scale2Documented")
         invalid["spo2_scale"] = "missing_context"
+    scoring = score_inputs(effective, invalid, complete=not missing and not invalid)
+    status = "incomplete" if missing or invalid else "scored" if scoring["news2Score"] is not None else "configuration_required"
     return {"assessmentType": "news2", "id": body.id, "crewId": crew, "version": body.expectedVersion + 1,
             "observedAt": utc_text(body.observedAt), "updatedAt": now_text(), "source": "manual",
             "isSynthetic": True, "inputs": inputs, "effectiveInputs": effective, "linkedRecords": evidence,
             "measurementIds": body.measurementIds, "poorQuality": body.poorQuality,
-            "assessmentStatus": "incomplete" if missing or invalid else "configuration_required",
+            "assessmentStatus": status,
             "missingInputs": missing, "invalidInputs": list(invalid), "invalidReasons": invalid,
             "missingDetails": details, "validCount": len(LABELS) - len(missing) - len(invalid),
-            "configurationIssues": ["scoring_profile_not_enabled"], "news2Score": None,
-            "ruleSetVersion": "news2-training-completeness-v1", "consciousnessScaleVersion": "RCP-ACVPU-2017"}
+            **scoring, "consciousnessScaleVersion": "RCP-ACVPU-2017"}
 
 
 def register_news2(app: FastAPI, path: Path) -> None:
@@ -178,6 +192,11 @@ def register_news2(app: FastAPI, path: Path) -> None:
                        row_number() OVER (PARTITION BY id ORDER BY version DESC) AS pos
                 FROM news2_versions WHERE crew=?) WHERE pos=1 ORDER BY observed DESC,seq DESC""", (crew,))
             return response({"items": [summary(json.loads(row[0])) for row in rows]})
+
+    @app.get("/v1/news2/config/current")
+    def config(request: Request):
+        owner(request)
+        return response(configuration())
 
     @app.get("/v1/news2/{ident}")
     def one(request: Request, ident: str, version: int | None = None):

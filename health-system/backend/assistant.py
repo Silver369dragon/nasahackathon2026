@@ -8,7 +8,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from pydantic import Field
 
-from . import cloud_chat
+from . import cloud_chat, health_reports
 from .alerts import list_alerts
 from .chat_evidence import build_facts
 from .models import Contract, Identifier
@@ -29,10 +29,17 @@ CREATE INDEX IF NOT EXISTS chat_history ON chat_turns(crew,conversation,created)
 def initialize_chat(path: Path) -> None:
     with connection(path, write=True) as db:
         db.executescript(CHAT_SCHEMA)
+        db.executescript(health_reports.SCHEMA)
         if not any(row["name"] == "assessment_id" for row in db.execute("PRAGMA table_info(chat_turns)")):
             db.execute("ALTER TABLE chat_turns ADD COLUMN assessment_id TEXT")
+        if not any(row["name"] == "analysis_id" for row in db.execute("PRAGMA table_info(chat_turns)")):
+            db.execute("ALTER TABLE chat_turns ADD COLUMN analysis_id TEXT")
+        if not any(row["name"] == "report_id" for row in db.execute("PRAGMA table_info(chat_turns)")):
+            db.execute("ALTER TABLE chat_turns ADD COLUMN report_id TEXT")
         # A process restart interrupts pending network requests; their local answer is already saved.
-        db.execute("""UPDATE chat_turns SET answer=json_set(answer,'$.status','fallback','$.reason','interrupted')
+        db.execute("""UPDATE chat_turns SET answer=json_set(answer,'$.status','fallback','$.reason','interrupted',
+                      '$.renderer','local','$.modelName','local','$.verification.status','local',
+                      '$.verification.reason','interrupted')
                       WHERE json_extract(answer,'$.status')='pending'""")
 
 
@@ -42,6 +49,8 @@ class Question(Contract):
     commandId: Identifier
     conversationId: Identifier | None = None
     assessmentId: Identifier | None = None
+    analysisId: Identifier | None = None
+    reportId: Identifier | None = None
 
 
 def cited_sources(facts: list[Data], indexes: list[int]) -> list[Data]:
@@ -58,7 +67,10 @@ def answer_for(facts: list[Data], indexes: list[int], status: str, reason: str =
     paragraphs = ([summary] if summary else []) + supporting
     return {"text": "\n\n".join(paragraphs), "citations": cited_sources(facts, selected),
             "summary": summary, "summaryCitations": cited_sources(facts, indexes) if summary else [],
-            "status": status, "renderer": "llm" if status == "completed" else "local", "reason": reason}
+            "status": status, "renderer": "llm" if status == "completed" else "local", "reason": reason,
+            "templateVersion": "grounded-answer-v2", "modelName": cloud_chat.model_name() if status == "completed" else "local",
+            "verification": {"status": "verified" if status == "completed" else "pending" if status == "pending" else "local",
+                             "reason": reason}}
 
 
 def turn_document(row) -> Data:
@@ -68,6 +80,7 @@ def turn_document(row) -> Data:
 
 def register_assistant(app: FastAPI, path: Path) -> None:
     from .main import current, require_workspace, response
+    health_reports.register_health_reports(app, path)
 
     def owner(request: Request, *, write: bool = False) -> str:
         user = current(request, write=write)
@@ -88,6 +101,8 @@ def register_assistant(app: FastAPI, path: Path) -> None:
     @app.post("/v1/assistant/query")
     async def ask(request: Request, body: Question):
         crew = owner(request, write=True)
+        if sum(bool(value) for value in (body.assessmentId, body.analysisId, body.reportId)) > 1:
+            raise Problem(422, "CONFLICTING_EVIDENCE", "Select one assessment, analysis or report.")
         q = body.question.strip()
         if not q:
             raise Problem(422, "VALIDATION_ERROR", "Enter a question.")
@@ -96,7 +111,8 @@ def register_assistant(app: FastAPI, path: Path) -> None:
                                   (crew, body.commandId)).fetchone()
             if existing:
                 if (existing["question"] != q or existing["lang"] != body.language or
-                        existing["assessment_id"] != body.assessmentId or
+                        existing["assessment_id"] != body.assessmentId or existing["analysis_id"] != body.analysisId or
+                        existing["report_id"] != body.reportId or
                         (body.conversationId and existing["conversation"] != body.conversationId)):
                     raise Problem(409, "IDEMPOTENCY_CONFLICT", "This command belongs to another question.")
                 return response(turn_document(existing), replayed=True)
@@ -108,13 +124,14 @@ def register_assistant(app: FastAPI, path: Path) -> None:
             if prev and json.loads(prev["answer"])["status"] == "pending":
                 raise Problem(409,"ANSWER_PENDING","Wait for the preceding answer.")
             prior = {"topic":prev["topic"], "facts":json.loads(prev["facts"])} if prev else None
-            topic, facts = build_facts(db, crew, q, body.language, prior, body.assessmentId)
+            topic, facts = build_facts(db, crew, q, body.language, prior, body.assessmentId, body.analysisId, body.reportId)
             ident, stamp = str(uuid4()), now_text()
             has_evidence = any(f["refs"] for f in facts)
             result = answer_for(facts, list(range(len(facts))), "pending" if has_evidence else "no_evidence")
-            db.execute("INSERT INTO chat_turns VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            db.execute("INSERT INTO chat_turns(id,crew,conversation,command,question,lang,created,topic,facts,answer,"
+                       "assessment_id,analysis_id,report_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                        (ident,crew,conv,body.commandId,q,body.language,stamp,topic,encoded(facts),encoded(result),
-                        body.assessmentId))
+                        body.assessmentId, body.analysisId, body.reportId))
         if has_evidence:
             job = asyncio.create_task(finish(ident, q, body.language, facts, prior["topic"] if prior else ""))
             app.state.chat_jobs.add(job)
@@ -148,10 +165,15 @@ def register_assistant(app: FastAPI, path: Path) -> None:
             return response({"conversationId":conversationId,"items":[turn_document(r) for r in reversed(rows)]})
 
     @app.get("/v1/assistant/records/{kind}/{record_id}")
-    def record(request: Request, kind: Literal["measurement","task","alert","assessment"], record_id: str,
+    def record(request: Request, kind: Literal["measurement","task","alert","assessment","analysis","report"], record_id: str,
                version: int | None = None):
         crew = owner(request)
         with connection(path) as db:
+            if kind == "report":
+                return response(health_reports.read(db, crew, record_id))
+            if kind == "analysis":
+                from .baselines import read
+                return response(read(db, crew, record_id))
             if kind == "assessment":
                 return response(read_news2(db, crew, record_id, version))
             if kind == "task":

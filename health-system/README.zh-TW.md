@@ -77,7 +77,23 @@ FastAPI 從伺服器環境或本資料夾的 `.env.local` 讀取 `OPENAI_API_KEY
 
 「個人健康趨勢」提供 1 小時、24 小時、7 天、30 天與自訂 UTC 區間。每組曲線保留相同來源、量測方法、活動／姿勢／部位及資料性質。缺值或品質不良會中斷曲線；點量測點或用下拉選單可展開原始紀錄。資料密集時，每個繪圖時間格保留首末、最高及最低點，全部有效樣本仍參與計算。
 
-趨勢頁以選定區間前七天的同條件訓練資料作為比較。至少 30 個有效樣本且變異足夠時顯示標準化差異（Z-score）及平滑差異（EWMA，權重 0.2）。模擬器每秒最多取一筆有效值；顯示統計採 `training-window-v1` 版本。
+心率、血氧、呼吸頻率、收縮壓、舒張壓與體溫皆支援固定個人基準：在趨勢頁檢視七天同條件樣本，再按「建立固定基準」。至少需 30 筆有效樣本及大於 `1e-9` 的樣本標準差。每組指標、來源、方法、單位與情境同時只有一個現行版本；每版的樣本 ID、期間、平均及標準差永久保存。切換圖表或助手查詢不改寫基準。
+
+建立時會分析截止時間之後已有的同條件量測，後續手動、即時及匯入量測在寫入交易內保存分析。`fixed-baseline-v2` 計算 Z-score 與 EWMA（權重 0.2），保存量測、基準版本、分段及算法版本；既有 v1 紀錄不改寫。品質不足、取樣間隔改變，或空檔超過 `context.analysisCadenceSeconds` 的四倍時另起一段。cadence 是中繼資料，不作為比較序列的鍵；靜息與運動分開。模擬資料每 UTC 秒只採第一筆有效代表。晚到資料與同秒重複樣本保留明確狀態，不改寫既有 EWMA。
+
+「基準版本與審核」支援候選、明確啟用、排除期間、重建、凍結／解除、身體不適標記及停用，保存原因與操作歷史。首次候選也可先排除再審核；排除會淘汰未啟用候選。凍結仍以固定參數分析，替換前須明確解除；既有相關心率警示會自動凍結相同序列，清除警示不自動解除。未核准的實測資料不套用訓練設定。
+
+展開量測點的「來源與量測資料」再按「詢問助手這筆分析」，查詢攜帶同一不可變 `analysisId`。「另存重算修訂」只對選定單筆建立新 ID、`analysisRevision` 與獨立 EWMA 段，不改寫歷史或即時序列。趨勢數值對應該分析當時使用的基準，現行版本另行標示。總覽並列 NEWS2、六項統計、身體與輻射；缺值不當成零，不產生綜合健康分數或臨床判定。
+
+船員私有 API：`POST /v1/baselines`（`commandId`、本人 `measurementId`、`referenceTo`，需 CSRF）、`GET /v1/baselines/{id}`、`GET /v1/analyses/{id}`；助手查詢可指定 `analysisId`，引用可透過 `/v1/assistant/records/analysis/{id}` 讀取。新表沿用原 SQLite；原有資料可繼續讀取，不自動啟用基準。
+
+版本 API：`GET /v1/baselines?measurementId=...`、`POST /v1/baselines/candidates/new`、`POST /v1/baselines/{id}/actions`、`POST /v1/analyses/{id}/recalculate`。新命令需 CSRF、`commandId`、`expectedRevision` 與原因；候選另帶量測 ID 與截止時間。重啟時附加新表，既有基準／分析 JSON 不改寫。
+
+### 三層評估報告
+
+在 NEWS2 頁按「保存三層評估」，固定保存選定評估版本、精確連結量測的分析／基準、規則判定與當時警示、時間／品質／來源限制，以及知識／程序版本。手填值不借用其他量測的統計；舒張壓不屬 NEWS2 連結範圍，會明確標示。沒有 NEWS2 時，各指標最新量測分別呈現可比較性限制。
+
+「詢問助手這份報告」使用同一 `reportId`；追問保留快照，明確的新任務或量測問題可切換主題。模型不能更改分數、必備證據或引用；離線、逾時或驗證失敗回退本機事實，保存模板、模型與驗證資訊。`POST /v1/health-reports` 使用 `commandId` 及可選評估 ID／版本；GET 列表供本人／監測站讀摘要，完整報告及助手來源僅本人可讀，公共看板不可讀。重試不重複保存，GET 不重算，後續變更不改寫舊報告。
 
 Windows 預設資料庫位於 `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`。若要改用特定資料庫，可在啟動服務前將 `HEALTH_DB_PATH` 設為本機非同步資料夾中的完整檔案路徑。一般工作區使用 `runId=null`，量測成功後才會同步至其他畫面。瀏覽器以 session 驗證，人工寫入另需 CSRF token，Mock 使用個別裝置 Bearer 憑證。
 
@@ -85,12 +101,22 @@ Windows 預設資料庫位於 `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`
 
 ### NEWS2 健康評估
 
-1. 以 Mira 開啟「NEWS2 健康評估」，填同一次觀察的 UTC 時間。可直接登錄四項核心生命徵象，也可逐項選入已有的心率、血氧、收縮壓、體溫紀錄。每張評估獨立保存；從評估表直接輸入的數值保存在該次紀錄。
-2. 補登呼吸頻率與觀察秒數、意識狀態（ACVPU，C 為新發混亂）、呼吸環境空氣或接受補氧，以及醫療人員指定的血氧尺度。選尺度 2 時另需確認已有臨床指定紀錄。直接登錄體溫也要記錄部位和方法。空白代表未知，可以隨時儲存部分資料。[英國皇家內科醫學院 NEWS2](https://www.rcp.ac.uk/resources/national-early-warning-score-news-2/)
-3. 按「詢問助手這次評估還缺什麼」並送出。助手列出目前版本的缺項、不可用輸入及待補細節，回答可展開當時的原始評估。日後補登會產生新版本。
-4. 以監測帳號開啟「系統總覽」，可即時查看各船員最近一次評估的有效項數、缺項、資料時間及有效生命徵象。其他船員及唯讀大螢幕無法讀取該評估表。
+1. 以 Mira 開啟「NEWS2 健康評估」，填同一次觀察的 UTC 時間。可直接登錄呼吸頻率、心率、血氧、收縮壓、體溫，也可逐項連結既有量測。呼吸頻率連結會沿用原始 `context.observationDuration` 秒數；不能用手填秒數覆蓋連結紀錄缺少的資料。
+2. 補登呼吸觀察秒數（手填呼吸頻率時）、意識狀態（ACVPU，C 為新發混亂）、呼吸環境空氣或接受補氧，以及醫療人員指定的血氧尺度。尺度 2 必須明確選擇並確認有臨床指定紀錄，系統不會從血氧值自動推定。直接登錄體溫也要記錄部位和方法。可先儲存部分資料。[RCP 官方 NEWS2 計分表](https://www.rcp.ac.uk/media/alxev00t/news2-chart-1_the-news-scoring-system_0_0.pdf)
+3. 儲存後查看「訓練 NEWS2 總分」與「已保存分項計分」。8/8 仍表示八項必要輸入完整；七個分項為六項生理參數加補氧分數，血氧尺度屬於計分設定。缺項、品質不足或超出時間窗時，已知分項仍顯示，完整總分為空；「—」不代表 0 分。
+4. 按「詢問助手這次 NEWS2 評估」並送出。助手引用已保存版本的分數、規則版本與缺漏資料，回答可展開當時的原始評估。日後補登產生新版本，先前引用不會改寫。監測站同步顯示最新評估摘要；完整紀錄限本人讀取，其他船員與唯讀大螢幕無法讀取。
 
-展示版以觀察時間前後五分鐘為選入既有量測的分組範圍，這是合成資料的工程設定。品質不良、缺值和跨時間窗的紀錄不可計入有效項數。八項齊全會顯示「資料已齊，船內評分設定待核准」。總分保持空白。
+展示版以觀察時間前後五分鐘為量測分組範圍，屬於訓練工程設定。計分預設版本為 `rcp-news2-2017-training-v1`。啟動前設定環境變數 `HEALTH_NEWS2_PROFILE=disabled` 可停用新紀錄計分；未知版本也不計分、不回退預設值。未設定時使用預設版本。重新啟動服務後生效，表單會透過 `/v1/news2/config/current` 顯示目前設定。
+
+每次儲存會一起保存 `componentScores`、`news2Score`、`scoringInputs`、`ruleSetVersion`、`normalizationVersion` 與設定狀態；變更設定、重新啟動或重送同一請求不會重算既有版本。舊版僅有完整度的紀錄維持原狀；要計分須另存新版本。
+
+本系統的 `decimal-half-up-v1` 訓練輸入政策將呼吸頻率、血氧、收縮壓與心率四捨五入至整數，體溫至 0.1°C；例如 18.5 次／分以 19 計分。原值與計分值均保留，畫面可分別查看。此小數處理是本系統的工程政策，並非 RCP 的小數量測規範。所有結果僅供合成資料訓練，不作臨床分級、診斷、處置或自動通報。
+
+計分來源：Royal College of Physicians, *National Early Warning Score (NEWS) 2: Standardising the assessment of acute-illness severity in the NHS*, 2017。中文說明未經 RCP 特別核准；請以英文原始文件為準。[尺度 2 的指定條件與補充說明](https://www.rcp.ac.uk/media/umzn4ntq/news2_additional-guidance-002-_0.pdf)
+
+新 NEWS2 紀錄也保存單項 3 分、`riskBand`、`interpretationVersion` 與 [RCP Chart 2](https://www.rcp.ac.uk/media/2acdezkd/news2-chart-2_news-thresholds-and-triggers_0.pdf) 來源。缺總分不指定整體級別；舊分數的圖表對照會明示「原紀錄未保存分級」。此訓練顯示不新增通報或臨床處置。
+
+手機版 NEWS2 也可在儲存觀察後按「保存三層評估」。視覺趨勢頁的「個人基準與詳細分析」可開啟候選審核、版本管理及已保存分析引用，再以「返回趨勢摘要」切回簡潔圖表。
 
 ## 身體全息圖：一分鐘展示
 
@@ -130,6 +156,24 @@ Windows 預設資料庫位於 `%LOCALAPPDATA%\NasaHealthSystem\training.sqlite3`
 
 ## 匯入展示用歷史資料
 
+### 30 天歷史與五分鐘播放
+
+[v3 資料包](../output/health-demo-v3/crew-demo-v3.zip) 遵循[合成資料契約](DATA_DEMO_FORMAT.zh-TW.md)，含五位虛構船員、216,000 包歷史量測、900 筆歷史 NEWS2 觀察、25 次身體掃描，以及 300 秒的 1,505 包即時資料。從儲存庫根目錄建立新候選資料庫：
+
+```powershell
+.\health-system\.venv\Scripts\python.exe .\health-system\demo_prepare.py --dataset .\output\health-demo-v3\crew-demo-v3.zip --output "$env:LOCALAPPDATA\NasaHealthSystem\crew-demo-v3-candidate.sqlite3"
+```
+
+`--dataset`、`--output` 為必要參數。準備程序先驗證 ZIP，拒絕覆蓋既有目標或 `.building`，並以 `[preparedAt − 14 天, preparedAt − 7 天)` 建立五人各六組靜息基準，共 30 組。這個指令不替換目前服務使用的資料庫；再次準備須用新的候選路徑，保留既有紀錄與 session。
+
+醫療服務使用已準備的資料庫後，開啟 3D 的 `/playback.html`，以 `monitor` 登入並按「開始新的示範」／「停止示範」。每次開始由後端執行單次 300 秒播放，完成後保留已保存結果；重新整理或關閉控制頁不會重啟或停止。連線模式沒有自動循環、暫停或倍速。先停止其他傳送器；播放中後端會拒絕其他 mock 輸入。
+
+歷史結束於 `preparedAt − 60 秒`，即時資料從實際 `startedAt` 開始。兩個時間錨點獨立，中間的真實空檔不補值、不重寫時間。摘要區分已保存歷史、本次回放與過期／未提供資料。五分鐘內身體組成不變，輻射獨立累積，不加進 NEWS2。
+
+`GET /v1/demo/playback` 限已登入 session；`GET /v1/demo/profile?crewId=...`、`/v1/demo/assessment?crewId=...` 限本人或 `monitor`，後者回傳基本資料、播放狀態、六項基準、已保存 NEWS2、身體與輻射摘要。`POST /v1/demo/playback/start`、`/stop` 需 `monitor`＋CSRF，內文為 `{commandId}`；公共看板無法讀取個人基本資料。包內 expected 答案僅供測試，不作 runtime 輸入；合成範例不證明臨床準確度、真實裝置送達或部署驗收完成。
+
+### 獨立歷史 JSON 匯入與舊版 CLI
+
 以 `monitor`／`orbital-demo` 登入 `/system`，在資料匯入區選擇 [crew-dataset.example.json](examples/crew-dataset.example.json)，檢查摘要後按匯入。JSON 格式為 `crew-dataset/1`，支援生命徵象、身體掃描與輻射封存；上限 32 MiB。相同 datasetId 與內容重送不會重複建立，內容不同需換新的 ID。資料必須是歷史時間，不接受未來量測。匯入會寫入目前的資料庫；如要獨立展示，可先設定不同的 `HEALTH_DB_PATH`。
 
-這份 JSON 用來展示匯入與歷史檢視；[60 秒 ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) 則供 3D 的 `/playback.html` 循環傳送即時合成遙測，兩者不可互換。ZIP 每輪五人共 300 包、1,215 筆指標，含心率、血氧、呼吸頻率、呼吸費力缺值，以及首秒的體溫與血壓。所有資料皆為展示用合成資料。
+[舊版 60 秒 ZIP](../astro-hiyoko-demo/data/crew-health-sample60.zip) 保留供 `dataset_player.py --dataset ... --inspect` 或獨立 CLI 傳送器使用，每輪 300 包、1,215 筆指標。目前 3D 的 `/playback.html` 不再讀取該檔。舊版 ZIP、v3 `crew-demo/1` 與 `crew-dataset/1` 歷史 JSON 是不同格式，不可互換。

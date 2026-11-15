@@ -62,6 +62,11 @@ def ensure_radiation_started(db: sqlite3.Connection, now_utc: datetime, source_m
     prior = mission(db)
     if prior:
         profiles = {r[0] for r in db.execute('SELECT crew_id FROM radiation_profiles')}
+        if prior.get('seedVersion') == 'crew-demo/1':
+            counts = dict(db.execute('SELECT crew_id,COUNT(*) FROM radiation_history GROUP BY crew_id').fetchall())
+            if profiles != set(HISTORY) or counts != dict.fromkeys(HISTORY, 2):
+                raise Problem(503, 'RADIATION_STATE_INCONSISTENT', 'Prepared demonstration history is incomplete; no data was reset.')
+            return prior
         histories = db.execute("SELECT COUNT(*) FROM radiation_history WHERE id LIKE 'radiation-history-v1:%'").fetchone()[0]
         if not set(HISTORY).issubset(profiles) or histories != 9:
             raise Problem(503, 'RADIATION_STATE_INCONSISTENT', 'Saved radiation history is incomplete; no data was reset.')

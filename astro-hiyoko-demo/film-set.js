@@ -153,7 +153,7 @@ export function addFilmSet(scene, ship, {scripted = true} = {}) {
   }
 
   // A compact console is mounted aft of the ship's real forward control bank.
-  // Timmy faces -X; the lever pivots toward +X into his right hand.
+  // Mira faces -X; the lever pivots toward +X into his right hand.
   const consoleRoot = new THREE.Group();
   consoleRoot.position.set(-22.94, 0, 0);
   stage.add(consoleRoot);
