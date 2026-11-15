@@ -32,6 +32,7 @@ fieldset{border:0;border-top:1px solid var(--line);padding:9px 0 0;margin:0;min-
 .subtle{margin-top:13px;color:var(--muted);font-size:.79rem;background:transparent}.files{border-top:1px solid var(--line);padding-top:14px;margin:18px 0 8px;gap:6px}.files button{font-size:.78rem;flex:1;padding:.48rem .25rem}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}[hidden],#frame canvas[hidden],#download[hidden]{display:none!important}
 #live-health{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.edition-divider{border:0;border-top:1px solid var(--line);margin:18px 0}#film-edition{border-color:var(--mint);margin-bottom:8px}#edition-note{margin-bottom:2px}
 #live-connection{font-size:.8rem;color:var(--mint);margin:8px 0}#live-readings{margin:8px 0}
 #live-readings div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:.8rem}
 #live-readings dd{margin:0;font-variant-numeric:tabular-nums;color:var(--mint)}#live-health a{display:inline-block;margin-top:8px;font-size:.8rem}

@@ -1,4 +1,4 @@
-import {defaultShots, locate, shotStart, totalTime} from './film-timeline.mjs';
+import {shotStart, soundAt, totalTime} from './film-timeline.mjs';
 
 // The preview and recorder share this canvas, including all titles and inserts.
 const WIDTH = 1280;
@@ -53,7 +53,7 @@ const inserts = [
 
 const filmedTitles = {
   trends:['HEALTH','TRENDS'], 'record-detail':['MEASUREMENT','DETAILS'], overview:['CREW','OVERVIEW'],
-  alert:['LIVE','READINGS'], question:['ASK ABOUT','THE ALERT'], guide:['UNDERSTAND','THE ALERT'],
+  alert:['HEALTH','READINGS'], question:['ASK ABOUT','THE ALERT'], guide:['UNDERSTAND','THE ALERT'],
   evidence:['CHECK THE','SOURCES'], 'aid-route':['OPEN','FIRST AID'], 'aid-steps':['IMMEDIATE','STEPS'],
 };
 
@@ -106,10 +106,75 @@ function drawInsert(ctx, t, media) {
     }
   }
   if (t >= 29.4) credits(ctx, t);
-  else if (t >= 11 && t < 11.8) subtitle(ctx, 'Timmy!');
+  else if (t >= 11 && t < 11.8) subtitle(ctx, 'Mira!');
   else if (t >= 12.2 && t < 13.05) subtitle(ctx, "I'm beside him.");
   else if (t >= 26.6 && t < 27.7) {
     text(ctx, 'LATER', 64, 661, 28, paper, 600);
+  }
+}
+
+function scenarioCard(ctx, heading, detail, accent = mint) {
+  ctx.fillStyle = 'rgba(6, 17, 23, .91)';
+  ctx.fillRect(54, 48, 620, 142);
+  ctx.fillStyle = accent;
+  ctx.fillRect(54,48,5,142);
+  text(ctx, 'MIRA / SIMULATED SCENARIO', 78, 82, 17, '#afc2c8');
+  text(ctx, heading, 78, 128, 32, accent, 650);
+  text(ctx, detail, 78, 166, 20);
+}
+
+function drawRevised(ctx, {id,progress}, media) {
+  if (id === 'title') {
+    ctx.fillStyle = '#07161c'; ctx.fillRect(0,0,WIDTH,HEIGHT);
+    ctx.strokeStyle = mint; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(640,252,57,24,-.35,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(640,252,31,0,Math.PI*2); ctx.stroke();
+    ctx.save(); ctx.textAlign = 'center';
+    text(ctx,'ASTRO HIYOKO',640,378,70,paper,650);
+    text(ctx,'Know sooner. Help together.',640,440,30,mint);
+    ctx.restore();
+    return;
+  }
+  if (id === 'body' && progress > .1 && media?.ready && media.live === false) {
+    media.draw(ctx,'body-map',progress);
+  }
+  const clip = {'wrist-warning':'alert',app:'alert',evidence:'evidence','aid-steps':'aid-steps'}[id];
+  if (clip && media?.ready) {
+    drawPhone(ctx,clip,id === 'wrist-warning' ? 1 : progress,media);
+    text(ctx,media.live === false ? 'SIMULATED SENSOR INPUT' : 'LIVE MEDICAL SYSTEM',875,62,20,mint);
+    if (id === 'wrist-warning') {
+      text(ctx,media.live === false ? 'BEFORE SIGNAL LOSS' : 'CURRENT READINGS',875,292,23,paper,650);
+      text(ctx,media.live === false ? 'Recorded App measurements' : 'See current connection state',875,335,20,'#afc2c8');
+    }
+    if (id === 'app') {
+      text(ctx,'SENSOR SOURCE',875,286,23,'#afc2c8');
+      text(ctx,media.live === false ? 'BACKUP SENSOR' : 'CURRENT FEED',875,325,26,paper,650);
+      text(ctx,media.live === false ? 'LINK RESTORED' : 'SEE READING TIME',875,365,20,mint);
+      text(ctx,media.live === false ? 'HEALTH ALERT REMAINS' : 'CHECK CURRENT STATUS',875,410,20,'#ffc87b');
+    }
+    if (id === 'evidence') {
+      text(ctx,'CHECK THE EVIDENCE',875,320,23,mint);
+      text(ctx,'Source · context · guidance',875,360,20);
+    }
+    if (id === 'aid-steps') {
+      text(ctx,'COORDINATE',875,300,27,mint,650);
+      text(ctx,'Read the onboard guidance.',875,344,20);
+      text(ctx,'Crew assistance continues.',875,380,20);
+    }
+  }
+  if (media?.live && ['collapse','swap','reconnect'].includes(id)) {
+    ctx.fillStyle = 'rgba(6, 17, 23, .91)';
+    ctx.fillRect(54,48,300,42);
+    text(ctx,'SIMULATED SCENARIO',70,77,22,paper,600);
+  }
+  if (id === 'collapse') subtitle(ctx,'SENSOR OFFLINE · NO NEW READINGS');
+  if (id === 'approach') subtitle(ctx,'Mira!  /  Kai calls for support');
+  if (id === 'swap') subtitle(ctx,'ATTACHING BACKUP · DATA STILL PAUSED');
+  if (id === 'reconnect') subtitle(ctx,progress < .3 ? 'CONNECTING BACKUP…' : 'BACKUP CONNECTED · READINGS RESUME');
+  if (id === 'help') subtitle(ctx,'Kai assists · Lin brings support');
+  if (id === 'later') {
+    text(ctx,'LATER / 稍後',64,661,28,paper,600);
+    if (progress > .35) scenarioCard(ctx,'MIRA IS RESPONDING','Crew remains at her side');
   }
 }
 
@@ -126,7 +191,7 @@ const cues = [
 ];
 
 /** @type {Array<[number, string]>} */
-const dialogue = [[11, 'timmy'], [12.2, 'beside']];
+const dialogue = [[11, 'mira'], [12.2, 'beside']];
 /** @type {Array<[number, number, number, number]>} */
 const foley = [
   [5.15, 0.32, 0.018, 850], [10.05, 0.45, 0.025, 520],
@@ -136,8 +201,30 @@ const foley = [
   [28.15, 0.14, 0.035, 1600],
 ];
 
+// Three original instrumental moods, scheduled on the revised cut clock.
+// No downloaded music or external audio dependency is needed.
+function revisedScore() {
+  /** @type {Array<[number, number, number, number]>} */
+  const notes = [];
+  for (let at = 6.3; at < 24.8; at += .5) {
+    notes.push([at,[110,130.81,164.81,130.81][Math.round(at*2)%4],.38,.025]);
+  }
+  const daily = [261.63,329.63,392,523.25,392,329.63,293.66,392];
+  for (let i=0;i<14;i++) notes.push([i*.45,daily[i%daily.length],.43,.03]);
+  for (const at of [24.8,26.8,28]) for (const hz of [130.81,196,261.63,329.63]) notes.push([at,hz,1.9,.018]);
+  return notes;
+}
+/** @type {Array<[number, number, number, number]>} */
+const revisedCues = [[6.3,850,.13,.11],[8.3,880,.2,.13],[8.6,660,.2,.1],
+  [14.1,784,.12,.13],[14.28,1046.5,.18,.12]];
+/** @type {Array<[number, number, number, number]>} */
+const revisedFoley = [[10.6,.2,.08,220],[13.6,.07,.075,2200],[26.85,.10,.035,1600]];
+/** @type {Array<[number, string]>} */
+const revisedDialogue = [[10.8,'mira']];
+
 // Both playback and offline export use the same graph and event scheduling.
-function audioGraph(engine, filmMedia) {
+function audioGraph(engine, filmMedia, edition = 'original') {
+  const revisedCut = edition === 'revised';
   const mix = engine.createGain();
   mix.gain.value = 0.67;
   mix.connect(engine.destination);
@@ -162,6 +249,11 @@ function audioGraph(engine, filmMedia) {
   for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
 
   function ambience(storyTime, now) {
+    if (revisedCut) {
+      level.gain.setTargetAtTime(storyTime >= 26 ? .012 : .022,now,.13);
+      harmony.gain.setTargetAtTime(storyTime >= 26 ? .008 : .002,now,.3);
+      return;
+    }
     const target = storyTime >= 26.6 ? 0.012 : storyTime >= 9.6 && storyTime < 11.6 ? 0.0001 : storyTime >= 15.1 ? 0.014 : storyTime >= 11.6 ? 0.024 : 0.04;
     level.gain.setTargetAtTime(target, now, 0.13);
     const chord = storyTime >= 9.6 && storyTime < 11.6 ? 0.0001 : storyTime >= 29.4 ? 0.004 : storyTime >= 15.1 ? 0.008 : 0.005;
@@ -211,16 +303,30 @@ function audioGraph(engine, filmMedia) {
     voice.start(now);
   }
 
+  function note([, frequency, duration, volume], now) {
+    const voice = engine.createOscillator();
+    const envelope = engine.createGain();
+    voice.type = 'triangle';
+    voice.frequency.value = frequency;
+    envelope.gain.setValueAtTime(.0001,now);
+    envelope.gain.exponentialRampToValueAtTime(volume,now+.025);
+    envelope.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    voice.connect(envelope).connect(mix);
+    voice.onended = () => { voice.disconnect(); envelope.disconnect(); };
+    voice.start(now); voice.stop(now+duration);
+  }
+
   return {ambience, events: [
-    ...cues.map(event => ({at: event[0], schedule: now => cue(event, now)})),
-    ...foley.map(event => ({at: event[0], schedule: now => effect(event, now)})),
-    ...dialogue.map(event => ({at: event[0], schedule: now => speech(event, now)})),
+    ...(revisedCut ? revisedCues : cues).map(event => ({at: event[0], schedule: now => cue(event, now)})),
+    ...(revisedCut ? revisedFoley : foley).map(event => ({at: event[0], schedule: now => effect(event, now)})),
+    ...(revisedCut ? revisedDialogue : dialogue).map(event => ({at: event[0], schedule: now => speech(event, now)})),
+    ...(revisedCut ? revisedScore().map(event => ({at:event[0],schedule:now => note(event,now)})) : []),
   ]};
 }
 
-function soundtrack(filmMedia) {
+function soundtrack(filmMedia, edition) {
   const engine = new AudioContext({latencyHint: 'playback', sampleRate: 48000});
-  const graph = audioGraph(engine, filmMedia);
+  const graph = audioGraph(engine, filmMedia, edition);
   let last = null;
   return {
     ready: engine.resume(),
@@ -238,23 +344,34 @@ function soundtrack(filmMedia) {
 }
 
 /** Render edited film audio independently of wall-clock playback and video encoding. */
-export async function renderFilmAudio(shots, media) {
+export async function renderFilmAudio(shots, media, edition = 'original') {
   const duration = totalTime(shots);
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('影片長度必須大於零。');
   const engine = new OfflineAudioContext(1, Math.round(duration * 48000), 48000);
-  const graph = audioGraph(engine, media);
-  const canonical = defaultShots();
+  const graph = audioGraph(engine, media, edition);
   const editedTime = storyTime => {
-    const {index, progress} = locate(canonical, storyTime);
-    return shotStart(shots, index) + progress * shots[index].seconds;
+    // Invert the same story clock used by the picture and subtitles. Default
+    // shots already contain trimmed/extended durations and are not that clock.
+    for (let index = 0; index < shots.length; index++) {
+      const start = soundAt(index, 0, edition), end = soundAt(index, 1, edition);
+      if (storyTime < start || storyTime >= end) continue;
+      return shotStart(shots, index) + (storyTime - start) / (end - start) * shots[index].seconds;
+    }
+    return null; // A cue in a removed story segment must not play elsewhere.
   };
-  for (const at of [0, 9.6, 11.6, 15.1, 26.6, 29.4]) graph.ambience(at, editedTime(at));
-  for (const event of graph.events) event.schedule(editedTime(event.at));
+  for (const at of edition === 'revised' ? [0,4,7.5,9.5,12,16,23,26,28] : [0, 9.6, 11.6, 15.1, 26.6, 29.4]) {
+    const time = editedTime(at);
+    if (time !== null) graph.ambience(at, time);
+  }
+  for (const event of graph.events) {
+    const time = editedTime(event.at);
+    if (time !== null) event.schedule(time);
+  }
   // OfflineAudioContext clips tails, including dialogue that crosses the final cut.
   return engine.startRendering();
 }
 
-export function createFilmOutput(sourceCanvas, onFailure, media = null) {
+export function createFilmOutput(sourceCanvas, onFailure, media = null, edition = 'original') {
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -270,18 +387,19 @@ export function createFilmOutput(sourceCanvas, onFailure, media = null) {
 
   function startPreviewAudio() {
     if (audio) return;
-    const preview = soundtrack(media);
+    const preview = soundtrack(media,edition);
     audio = preview;
     // Ignore a superseded preview when an earlier resume rejects.
     void preview.ready.catch(() => { if (audio === preview) stopPreviewAudio(); });
   }
 
-  function draw(storyTime) {
+  function draw(storyTime, context = {id:'',progress:0,time:0,seconds:0}) {
     ctx.fillStyle = '#0b1721';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
-    drawInsert(ctx, storyTime, media);
-    audio?.draw(storyTime);
+    if (edition === 'revised') drawRevised(ctx,context,media);
+    else drawInsert(ctx, storyTime, media);
+    audio?.draw(edition === 'revised' ? context.time : storyTime);
   }
 
   return {canvas, draw, cancel: stopPreviewAudio, startPreviewAudio, stopPreviewAudio};

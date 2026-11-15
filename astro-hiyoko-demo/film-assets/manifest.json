@@ -13,7 +13,6 @@
       "pixelRatio": 1,
       "fps": 30,
       "language": "en",
-      "video": "/film-assets/body-map/body-map.webm",
       "source": "actual /app/body-map UI; mock synthetic baseline scan",
       "frames": [
         {
