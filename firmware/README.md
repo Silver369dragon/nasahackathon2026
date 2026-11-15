@@ -1,10 +1,10 @@
-# Telemetry Firmware and Backend Integration
+# Sensing Hardware, Firmware and Backend Integration
 
 English | [繁體中文](README.zh-TW.md)
 
-> Draft · 2026-11-15 · Author: Abby
+> Draft · 2026-11-15 · Authors: Abby (telemetry gateway firmware & backend integration) · Samreena (circuit setup, sensor selection & data acquisition)
 >
-> Sensor selection, the Wokwi circuit, the sensing firmware and the classification rules are covered in Samreena's "Biomedical Sensing System", sections 1–3. This document continues from there: it explains how the ESP32 gateway sends data for all five crew members to the backend, and how that data reaches the dashboard, AI assistant and 3D scene.
+> Section 2 covers the sensing side: sensor selection, the Wokwi circuit and the sensing firmware. Sections 3 onward explain how the ESP32 gateway sends data for all five crew members to the backend, and how that data reaches the dashboard, AI assistant and 3D scene.
 
 ---
 
@@ -26,7 +26,49 @@ All readings are simulated. The slide potentiometers on the Wokwi circuit are ad
 
 ---
 
-## 2. Data flow
+## 2. Sensing hardware and data acquisition
+
+### 2.1 Design approach and sensor selection
+
+This part covers the device-side sensing path: selecting sensing components, building the ESP32 circuit in Wokwi, and acquiring and processing input values. The design is developed incrementally, using physical sensor models where available and simulated inputs where specialist biomedical components are not represented directly in Wokwi.
+
+| Parameter | Selected sensor / approach |
+| --- | --- |
+| Heart rate and SpO₂ | MAX30102 optical sensor |
+| ECG | AD8232 ECG front-end module |
+| Temperature | TMP117 digital temperature sensor |
+| Movement | MPU6050 accelerometer and gyroscope |
+| Blood pressure | Proposed pressure-sensing subsystem; the pressure transducer needs a cuff and a measurement algorithm |
+| Respiratory effort | Respiration effort belt or a suitable movement sensor |
+
+The MAX30102 supports pulse-rate and SpO₂ estimation, the AD8232 conditions an ECG signal, the TMP117 provides digital temperature measurements and the MPU6050 measures movement. Blood pressure and respiratory effort need their own sensing arrangements and processing. The selected components are established sensors; the project's contribution is integrating them into a common embedded system.
+
+### 2.2 Circuit design and Wokwi simulation
+
+The ESP32 DevKit C v4 is the central controller. The Wokwi circuit has eight slide potentiometers connected through two ADS1115 analogue-to-digital converters at I²C addresses 0x49 and 0x4A, plus two knob potentiometers connected directly to GPIO 35 and GPIO 36 and read through the ESP32's built-in ADC. The TMP117 and other digital components use their own digital interfaces; I²C devices share the bus with distinct addresses.
+
+The potentiometers are adjustable test inputs for exercising the acquisition and processing firmware. They stand in for sensor signals in the simulation and are not biomedical measurements. Specialist sensors that Wokwi does not provide may be approximated with test inputs or software-generated values. This verifies the software data path, but does not validate the physical sensor or the accuracy of a physiological measurement.
+
+### 2.3 Sensing firmware and data processing
+
+The sensing firmware acquires values from the TMP117, the two ADS1115 devices, the two direct analogue inputs and other supported sensor interfaces. It converts raw readings into parameter values, attaches units and metadata, and checks whether each reading is available and usable. Simulated or software-generated values stay identifiable as such, so they are never mistaken for readings from a physical sensor.
+
+The health check uses the team's parameter-specific threshold table (section 4.4) to classify readings as normal, warning or critical:
+
+- Values are rounded to the precision given in the table before comparison.
+- The implementation was checked against 45 threshold cut-off values with no mismatches.
+- A separate fast-heart rule triggers when heart rate stays above 110 bpm for three seconds while the subject is at rest.
+- CO₂ and fatigue remain placeholder classifications because the table does not define their ranges.
+
+Sleep duration is not measured by the firmware; it is entered manually and handled separately from the live sensor data.
+
+### 2.4 Scope
+
+The distinctive contribution is integrating several sensing modalities around one ESP32 platform: a Wokwi prototype, analogue acquisition through two ADS1115 converters, parameter-specific preliminary health classification, and a schema-controlled JSON handoff to the backend (sections 5–6). Explicit quality and provenance information lets downstream components tell usable readings from missing, invalid or simulated ones. The work does not claim to invent new sensors or to provide clinically validated diagnosis.
+
+---
+
+## 3. Data flow
 
 ```mermaid
 flowchart LR
@@ -47,11 +89,11 @@ flowchart LR
 
 ---
 
-## 3. Firmware architecture
+## 4. Firmware architecture
 
 Code: [`sketch.ino`](sketch.ino) (Arduino framework, ESP32 DevKit C v4).
 
-### 3.1 FreeRTOS tasks
+### 4.1 FreeRTOS tasks
 
 | Task | Priority | Period | What it does |
 | --- | --- | --- | --- |
@@ -63,7 +105,7 @@ Code: [`sketch.ino`](sketch.ino) (Arduino framework, ESP32 DevKit C v4).
 - The transmit task copies a snapshot of the data and releases the lock before sending, so a slow network never blocks the reading tasks.
 - Only `vitalsTask` uses I2C, so two tasks never drive the bus at the same time.
 
-### 3.2 Sensor abstraction layer
+### 4.2 Sensor abstraction layer
 
 The main logic only calls `readVitals(i, sample)` and `readRespiratoryRate(i)` and does not care where the values come from. The crew member represented by the circuit reads the sliders; everyone else, and any metric whose ADS1115 does not respond, plays back the test dataset (`crew_data.h`). Switching to real sensors later only requires changing these functions.
 
@@ -80,7 +122,7 @@ The sliders stand in for sensor signals; the table shows how the firmware maps e
 | IMU posture | 0x4A A2 | supine / upright / active (display only) |
 | Respiratory rate | 0x4A A3 | 4–40 /min |
 
-### 3.3 Test-data playback
+### 4.3 Test-data playback
 
 - The data team's dataset-v2 contains a 10-minute live segment at one sample per second. [`tools/make_crew_data.py`](tools/make_crew_data.py) converts it into [`crew_data.h`](crew_data.h) (numbers only); the ESP32 starts playback when it first becomes able to send and loops after 10 minutes.
 - Every sample carries a quality: `good`, `poor` (`motion_artifact`) or `missing` (`no_sample`, sent with `value: null` and no alert judgment).
@@ -88,11 +130,11 @@ The sliders stand in for sensor signals; the table shows how the firmware maps e
 - Temperature and blood pressure are measured once a minute and are only included when a new measurement exists.
 - `observedAt` and `seq` keep moving forward in real time, so looping never collides with earlier packets.
 
-### 3.4 On-device alert judgment
+### 4.4 On-device alert judgment
 
 The gateway applies the team's threshold table to classify each metric as normal, warning or critical, and puts the result in that metric's `context.deviceAlert`. The overall assessment that combines several metrics is done by the backend.
 
-The sensing firmware (Samreena) uses the same threshold table and adds three things: values are rounded to the precision given in the table before comparison; the implementation was checked against 45 threshold cut-off values with no mismatches; and a separate fast-heart rule triggers when heart rate stays above 110 bpm for three seconds while at rest. CO₂ and fatigue remain placeholder classifications because the table does not define their ranges. The gateway currently classifies each reading on its own.
+The sensing firmware uses the same table with rounding and a fast-heart rule (section 2.3). The gateway currently classifies each reading on its own.
 
 | Metric | normal | warning | critical |
 | --- | --- | --- | --- |
@@ -107,7 +149,7 @@ The sensing firmware (Samreena) uses the same threshold table and adds three thi
 
 ---
 
-## 4. Packet format
+## 5. Packet format
 
 Packets follow the backend's schema 1.3 with UCUM units (`/min`, `%`, `Cel`, `mm[Hg]`). There is one packet per crew member. Example for Mira (sent as a single line in practice):
 
@@ -161,11 +203,11 @@ Packets follow the backend's schema 1.3 with UCUM units (`/min`, `%`, `Cel`, `mm
 
 ---
 
-## 5. Transmission and reliability
+## 6. Transmission and reliability
 
 | Mechanism | How |
 | --- | --- |
-| Encryption | HTTP for now (see section 8). The firmware also supports HTTPS with root-certificate verification (`setCACert` + ISRG Root X1), selected by the URL scheme |
+| Encryption | HTTP for now (see section 9). The firmware also supports HTTPS with root-certificate verification (`setCACert` + ISRG Root X1), selected by the URL scheme |
 | Authentication | A separate Bearer token per crew member; device ID, assignment ID and token must match |
 | Clock | Three NTP servers; nothing is sent until the clock is synchronized (the backend rejects `unsynced`) |
 | Retries | On connection failure or 408/429/5xx, resend the identical packet up to 3 times (waits of 0.25 s and 0.5 s) |
@@ -176,7 +218,7 @@ Packets follow the backend's schema 1.3 with UCUM units (`/min`, `%`, `Cel`, `mm
 
 ---
 
-## 6. Running in Wokwi
+## 7. Running in Wokwi
 
 1. Open the Wokwi project (with the ADS1115 slider circuit) and replace `sketch.ino` with this project's version. Also add a `crew_data.h` tab with this project's file of the same name.
 2. Tokens are not stored in the public code. Before running, replace `PASTE-…-TOKEN-HERE` in `DEVICE_TOKENS[]` with the tokens shared privately by the backend owner.
@@ -202,7 +244,7 @@ Sol  warning  HR -- (missing) | SpO2 -- (missing) | T 36.70 | BP 119/82 | RR 15
 
 ---
 
-## 7. Verification
+## 8. Verification
 
 | Item | Result |
 | --- | --- |
@@ -216,7 +258,7 @@ Sol  warning  HR -- (missing) | SpO2 -- (missing) | T 36.70 | BP 119/82 | RR 15
 
 ---
 
-## 8. Limitations and future work
+## 9. Limitations and future work
 
 - **All data is simulated**: there is no physical circuit. Sourcing, assembling and debugging hardware was not feasible within the competition timeline.
 - **No emergency in the test data**: dataset-v2 only reaches warning; to show a critical alert, move Mira's sliders.
