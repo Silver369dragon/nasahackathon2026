@@ -645,9 +645,10 @@ function normalize(path: string, s: Session) {
   return path.replace(/\/$/, '')
 }
 export default function App() {
-  const [lang, setLang] = useState<Lang>(() =>
-    localStorage.getItem('orbital.lang') === 'zh-TW' ? 'zh-TW' : 'en',
-  )
+  // Every new visit opens in English; a language switch is kept only for this tab (reloads included).
+  const [lang, setLang] = useState<Lang>(() => {
+    try { return sessionStorage.getItem('orbital.lang') === 'zh-TW' ? 'zh-TW' : 'en' } catch { return 'en' }
+  })
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [expired, setExpired] = useState(false)
@@ -667,7 +668,7 @@ export default function App() {
   }, [])
   useEffect(() => {
     document.documentElement.lang = lang
-    localStorage.setItem('orbital.lang', lang)
+    try { sessionStorage.setItem('orbital.lang', lang) } catch { /* The switch still applies to this page. */ }
   }, [lang])
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname.slice(stationBase.length))

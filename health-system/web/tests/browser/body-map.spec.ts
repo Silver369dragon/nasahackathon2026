@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 async function login(page: Page, username = 'mira') {
-  await page.addInitScript(() => localStorage.setItem('orbital.lang','zh-TW'))
+  await page.addInitScript(() => sessionStorage.setItem('orbital.lang','zh-TW'))
   const response = await page.request.post('/v1/auth/login', {data:{username,password:'body-e2e-only'}})
   expect(response.ok()).toBeTruthy()
   return (await response.json()).data.csrfToken as string
