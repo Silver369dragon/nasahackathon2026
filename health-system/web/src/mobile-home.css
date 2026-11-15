@@ -204,3 +204,52 @@
 .catalog-detail dt { color: var(--muted); }
 .catalog-detail dd { margin: 0; }
 .catalog-back { gap: 4px; background: transparent; color: var(--accent); font-weight: 600; padding: 4px 0; }
+
+/* Phone home vital tiles (icon, large value, status pill; SpO2 ring). */
+.vital-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.vital-tile { --tone: #2f7a47; --tone-bg: #e3f1e6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 132px; padding: 8px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); text-align: center; }
+.vital-tile.outside { --tone: #a55f12; --tone-bg: #f8eac7; border-color: #ed9942; }
+.vital-tile.unusable, .vital-tile.none { --tone: #6d7f7c; --tone-bg: #e7ebe8; }
+.vital-icon { color: var(--tone); }
+.vital-value { font: 800 34px/1.05 Barlow, sans-serif; color: var(--tone); }
+.vital-tile.inside .vital-value { color: var(--ink); }
+.vital-pulse { width: 70px; height: 12px; }
+.vital-pulse polyline { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; }
+.vital-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.vital-label small { font: 10px var(--mono); }
+.vital-pill { padding: 1px 10px; border-radius: 999px; background: var(--tone-bg); color: var(--tone); font-size: 12px; font-weight: 700; }
+.vital-ring { width: 96px; height: 96px; }
+.vital-ring circle { fill: none; stroke-width: 6; }
+.vital-ring .track { stroke: #dfe7e2; }
+.vital-ring .fill { stroke: var(--tone); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 32px 32px; }
+.vital-ring text { font: 800 19px Barlow, sans-serif; fill: var(--tone); }
+
+/* Wider screens (web, crew view): same components laid out for the extra width. */
+@media (min-width: 651px) {
+  .vital-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .vital-tile { min-height: 168px; }
+  .vital-value { font-size: 44px; }
+  .vital-ring { width: 112px; height: 112px; }
+  .catalog-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .radiation-phone, .catalog-phone, .history-timeline, .history-detail { max-width: 900px; }
+  .phone-trends { max-width: 900px; }
+}
+
+/* Display board: crew health status list. */
+.crew-status-board { padding: 16px 20px; }
+.crew-status-board header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.crew-status-board h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .01em; }
+.crew-status-board ul { list-style: none; margin: 0; padding: 0; }
+.crew-status-board li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 10px 8px; border-top: 1px solid var(--line); border-radius: 8px; }
+.crew-status-board li.attention { background: #fbf1dc; }
+.crew-status-board li strong { display: block; font-size: 20px; }
+.crew-status-board li div span { display: block; font-size: 14px; color: var(--muted); }
+.crew-status-board li.attention div span { color: #774e18; font-weight: 600; }
+.crew-status-avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: #e7ece9; color: var(--ink); }
+.crew-status-board li.attention .crew-status-avatar { background: #f8eac7; color: #a55f12; }
+.crew-status-pill { padding: 4px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.crew-status-pill.normal { background: #e3f1e6; color: #2f7a47; }
+.crew-status-pill.attention { background: #f8eac7; color: #a55f12; }
+.crew-status-pill.unknown { background: #e7ebe8; color: #51676b; }
+.crew-status-note { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }

@@ -4,12 +4,12 @@ import { api, restricted } from './api'
 import { displayUnit, monitoringMetrics, prettyValue, stamp, tx, type CrewSummary, type Lang, type Measurement } from './domain'
 import { contextLabels, label } from './labels'
 import { referenceBand } from './Trends'
+import { useMobile } from './MobileHome'
 import './history-timeline.css'
 
 // Phone layout for measurement history: a dot matrix. Rows are measurement times (newest on
 // top), columns are vitals. Each dot is green inside the NEWS2 training reference range, orange
 // outside it, gray when unusable, and hollow when that vital was not measured.
-const PER_SCREEN = 7
 const matrixRows: [string, string, string][] = [
   ['heart_rate', 'Pulse', '心率'], ['spo2', 'SpO₂', '血氧'], ['blood_pressure_systolic', 'BP', '血壓'],
   ['temperature', 'Temp', '體溫'], ['respiratory_rate', 'Resp', '呼吸'],
@@ -56,6 +56,8 @@ export function HistoryTimeline({ crew, lang, deny, historyRevision }: {
   const [next, setNext] = useState<string | null>(null)
   const [screen, setScreen] = useState(0)
   const [open, setOpen] = useState<Row | null>(null)
+  // Seven rows fit a phone screen; wider screens show more per page.
+  const PER_SCREEN = useMobile() ? 7 : 12
   const cursor = cursors[cursors.length - 1]
   const revision = cursor ? '' : historyRevision
   useEffect(() => {

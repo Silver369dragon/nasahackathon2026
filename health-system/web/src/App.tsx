@@ -49,6 +49,8 @@ import { BodyOverview } from './BodyOverview'
 import { BodyLoadBoundary } from './BodyLoadBoundary'
 import { DatasetImport } from './DatasetImport'
 import { HistoryTimeline } from './HistoryTimeline'
+import { MobileVitals } from './MobileVitals'
+import { CrewStatusBoard } from './CrewStatusBoard'
 import { MobileBack, MobileHome, MobileMore, useMobile } from './MobileHome'
 import './style.css'
 
@@ -294,6 +296,9 @@ function Console({
   const mobile = useMobile()
   const simple = mobile && personal
   const mobileHome = simple && path === paths.personal
+  // Crew view on any screen size uses the visual components (tiles, colored statuses, pop-up);
+  // the tap-to-open screen flow above stays phone-only.
+  const visual = personal
   const nav = [
     ...(session.roles.includes('crew') && session.crewId
       ? [
@@ -414,7 +419,7 @@ function Console({
             </div>
           )}
           <div className="top-actions">
-            {simple && <EmergencyAlert crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username}
+            {visual && <EmergencyAlert crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username}
               crewId={session.crewId} openAid={() => go(paths.aid)}/>}
             <Clock />
             <Language lang={lang} change={toggleLang} />
@@ -472,7 +477,7 @@ function Console({
                 ' ' + t('Last sync', '最後同步') + ' ' + new Date(feed.syncedAt).toLocaleTimeString(lang)}
             </p>
           )}
-          {!simple && <EmergencyNotices crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>}
+          {!visual && <EmergencyNotices crew={feed.rows} items={feed.emergencies} lang={lang} username={session.username} crewId={session.crewId}/>}
           {detail && (
             <button className="back" onClick={() => go(paths.system)}>
               <ArrowLeft size={14} />
@@ -512,6 +517,10 @@ function Console({
             )}
             {isBoard && <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny} board/>}
           </div>}
+          {visual && path === paths.personal && !mobileHome && crew && <>
+            <SectionTitle text={t('Vital signs', '生命徵象')} />
+            <MobileVitals crew={crew} lang={lang} />
+          </>}
           {path === paths.personal && !mobileHome && <BodyOverview key={session.username} lang={lang} deny={deny} open={() => go(paths.body)} />}
           {path === paths.system && session.roles.includes('monitor') && <DatasetImport session={session} lang={lang} deny={deny} />}
           {((path === paths.personal && !mobileHome) || path === paths.system || detail) && <Radiation
@@ -542,7 +551,7 @@ function Console({
               revision={feed.historyRevision[session.username]} measure={() => go(paths.measure)}
               ask={id => { setChatAssessment(id); go(paths.chat) }} stepped={simple}/>
           ) : path === paths.trends ? (
-            <Trends lang={lang} deny={deny} revision={feed.historyRevision[session.username]} simple={simple}/>
+            <Trends lang={lang} deny={deny} revision={feed.historyRevision[session.username]} simple={visual}/>
           ) : path === paths.tasks ? null : path === paths.chat ? (
             <Chat session={session} lang={lang} deny={deny} assessmentId={chatAssessment} clearAssessment={() => setChatAssessment(undefined)}
               openAid={id => go(id === 'first-aid' ? paths.aid : paths.aid + '/' + id)} />
@@ -553,11 +562,11 @@ function Console({
             <Measure session={session} lang={lang} deny={deny} overview={() => go(paths.personal)} slider={simple} />
           ) : path === paths.radiation ? (
             <Radiation data={feed.radiation} connected={connected} session={session} lang={lang} deny={deny}
-              crewId={session.crewId} phone={simple}/>
+              crewId={session.crewId} phone={visual}/>
           ) : path === paths.more ? (
             <MobileMore lang={lang} go={go} paths={paths} signOut={stationBase ? undefined : signOut} />
           ) : path.endsWith('/catalog') ? (
-            <Catalog lang={lang} deny={deny} phone={simple} />
+            <Catalog lang={lang} deny={deny} phone={visual} />
           ) : !feed.loaded ? (
             <div className="panel empty-state">
               <Radio size={22} />
@@ -582,8 +591,9 @@ function Console({
                   <b>{feed.rows.length - withData}</b>
                 </div>
               </div>
-              <SectionTitle text={t('Crew measurements', '船員量測')} />
-              <CrewBoard board={isBoard} rows={feed.rows} lang={lang} navigate={go} />
+              {!isBoard && <SectionTitle text={t('Crew measurements', '船員量測')} />}
+              {isBoard ? <CrewStatusBoard rows={feed.rows} lang={lang} />
+                : <CrewBoard board={false} rows={feed.rows} lang={lang} navigate={go} />}
               {!isBoard && <section className="panel news-monitor"><h2>{t('Latest NEWS2 assessments','最新 NEWS2 健康評估')}</h2>
                 {feed.assessments.length ? feed.assessments.map(a => <article key={a.crewId}>
                   <strong>{feed.rows.find(r => r.crewId === a.crewId)?.name ?? a.crewId}</strong>
@@ -595,18 +605,18 @@ function Console({
             <div className="panel empty-state">{t('Data unavailable', '無可用資料')}</div>
           ) : (
             <div data-testid={'crew-' + crew.crewId}>
-              {path !== paths.history && (
+              {path !== paths.history && !(visual && path === paths.personal && !mobileHome) && (
                 <>
                   <SectionTitle text={t('Vital signs', '生命徵象')} />
-                  <div className="metric-grid">
-                    {(mobileHome ? metrics.slice(0, 4) : metrics).map((m) => (
-                      <Reading key={m.code} crew={crew} metric={m} lang={lang} compact={mobileHome} />
+                  {mobileHome ? <MobileVitals crew={crew} lang={lang} /> : <div className="metric-grid">
+                    {metrics.map((m) => (
+                      <Reading key={m.code} crew={crew} metric={m} lang={lang} />
                     ))}
-                  </div>
+                  </div>}
                 </>
               )}
               {mobileHome ? null : path === paths.history ?
-                simple ? <HistoryTimeline key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
+                visual ? <HistoryTimeline key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
                 : <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} /> :
                 <details className="disclosure panel"><summary><HistoryIcon size={17}/>{t('Measurement history', '量測歷史')}</summary>
                   <History key={crew.crewId} crew={crew} lang={lang} deny={deny} historyRevision={feed.historyRevision[crew.crewId]} />
