@@ -8,6 +8,17 @@ Our proposed three-layer analysis architecture combines **rule-based assessment,
 
 The current prototype runs locally, stores measurements in SQLite and provides five fictional crew accounts for training with manual entries and synthetic sensor data.
 
+## Contents and guides
+
+- [What the health system does](#what-the-health-system-does)
+- [Three-layer health analysis architecture](#three-layer-health-analysis-architecture)
+- [Start the health system on Windows](#start-the-health-system-on-windows)
+- [Optional demo in the 3D habitat](#optional-demo-in-the-3d-habitat)
+- [Added features and demonstration datasets](#added-features-and-demonstration-datasets)
+- [Hardware simulation](#hardware-simulation)
+- [Monitoring indicators and simulation values](numerical.md)
+- [Telemetry firmware and backend integration](firmware/README.md)
+
 ## What the health system does
 
 | Feature | What crew members and monitoring staff can do |
@@ -24,6 +35,8 @@ The current prototype runs locally, stores measurements in SQLite and provides f
 | Local operation and storage | Save records locally and synchronize screens through live updates. Local summaries, training materials and crew alerts remain available when the cloud model is unavailable. |
 
 The full data catalog defines **33 monitoring items** across emergency monitoring (12), daily health (9) and long-term monitoring (12). The current main measurement workflow supports heart rate, oxygen saturation, blood pressure and temperature. The remaining catalog entries guide further expansion.
+
+See the [monitoring indicators and simulation baseline worksheet](numerical.md) for the team's physiological test ranges, radiation simulation values, reasons for selecting the indicators and references.
 
 ## Three-layer health analysis architecture
 
@@ -119,3 +132,5 @@ With only the 3D service running, you can also explore four scripted scenarios. 
 - **Wokwi circuit simulation:** Interactive simulation of the ESP32-based biomedical sensing system, including sensor connections and firmware.
 
   [Wokwi Simulation](https://wokwi.com/projects/480433596780917761)
+
+- **Telemetry firmware and backend integration:** The [firmware guide](firmware/README.md) explains how the ESP32 gateway sends synthetic data for five crew members to the medical backend, including the packet format, Wokwi setup, verification results and current limitations.
